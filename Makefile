@@ -7,7 +7,10 @@ SRC := main.cpp
 OBJ := $(BUILD_DIR)/main.o
 
 # Debug-friendly build: minimal optimization and full debug info.
-CXXFLAGS ?= -std=c++11 -Og -g -Wall -Wextra -Wpedantic
+CXXSTD ?= -std=c++20
+# Default to quiet builds; override e.g. `make CXXWARN='-Wall -Wextra -Wpedantic'`.
+CXXWARN ?= -w
+CXXFLAGS ?= $(CXXSTD) -Og -g $(CXXWARN)
 
 FMT_CFLAGS := $(shell pkg-config --cflags fmt 2>/dev/null)
 FMT_LIBS := $(shell pkg-config --libs fmt 2>/dev/null)
