@@ -1,10 +1,14 @@
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <functional>
 #include <numeric>
 #include <optional>
+#include <queue>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "lc.hpp"
@@ -270,12 +274,217 @@ vector<vector<int>> fourSum(vector<int> &nums, int target) {
     return ret;
 }
 
+int ways(vector<string> &pizza, int k) {
+    const int m = pizza.size(), n = pizza[0].size();
+    std::vector<std::vector<int>> matrixSum(m + 1, std::vector<int>(n + 1));
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            matrixSum[i + 1][j + 1] =
+                matrixSum[i + 1][j] + matrixSum[i][j + 1] - matrixSum[i][j] + (pizza[i][j] & 1);
+        }
+    }
+    auto getApple = [&](const int i, const int j, const int ii, const int jj) -> int {
+        return matrixSum[ii][jj] - matrixSum[i][jj] - matrixSum[ii][j] + matrixSum[i][j];
+    };
+    int cuts = k - 1;
+    std::vector<std::vector<std::vector<int>>> cache(
+        k, std::vector<std::vector<int>>(m, std::vector<int>(n, -1)));
+    std::function<int(const int, const int, const int)> dfs = [&](const int c, const int i,
+                                                                  const int j) -> int {
+        if (cache[c][i][j] != -1)
+            return cache[c][i][j];
+        if (c == 0)
+            return getApple(i, j, m, n) > 0 ? 1 : 0;
+        int ret = 0;
+        for (int i2 = i + 1; i2 < m; i2++) {
+            if (getApple(i2, j, m, n) <= 0)
+                continue;
+            ret += dfs(c - 1, i2, j);
+        }
+        for (int j2 = j + 1; j2 < n; j2++) {
+            if (getApple(i, j2, m, n) <= 0)
+                continue;
+            ret += dfs(c - 1, i, j2);
+        }
+        return ret;
+    };
+    return dfs(k - 1, 0, 0);
+}
+
+int fib(int n) {
+    if (n < 2)
+        return n;
+    int a = 0, b = 1;
+    for (int i = 2; i <= n; i++) {
+        int c = a + b;
+        a = b;
+        b = c;
+    }
+    return b;
+}
+
+string convertToTitle(int columnNumber) {
+    std::string ret;
+    while (columnNumber > 0) {
+        ret.push_back((columnNumber - 1) % 26 + 'A');
+        columnNumber = (columnNumber - 1) / 26;
+    }
+    std::reverse(ret.begin(), ret.end());
+    return ret;
+}
+
+ListNode *partition(ListNode *head, int x) {
+    ListNode dummy1(0), dummy2(0);
+    ListNode *ptr1 = &dummy1, *ptr2 = &dummy2;
+    while (head != nullptr) {
+        if (head->val < x) {
+            ptr1->next = head;
+            ptr1 = head;
+        } else {
+            ptr2->next = head;
+            ptr2 = head;
+        }
+        head = head->next;
+    }
+    ptr1->next = dummy2.next;
+    ptr2->next = nullptr;
+    return dummy1.next;
+}
+
+string removeDuplicates(string s) {
+    std::string ret;
+    for (const char c : s) {
+        if (ret.empty() || ret.back() != c) {
+            ret.push_back(c);
+        } else {
+            ret.pop_back();
+        }
+    }
+    return ret;
+}
+vector<string> topKFrequent(vector<string> &words, int k) {
+    std::unordered_map<std::string, int> um;
+    for (const auto &word : words) {
+        um[word]++;
+    }
+    typedef std::pair<std::string, int> psi;
+    auto cmp = [](const psi &a, const psi &b) -> bool {
+        if (a.second > b.second)
+            return true;
+        if (a.second < b.second)
+            return false;
+        return a.first < b.first;
+    };
+    std::priority_queue<psi, std::vector<psi>, decltype(cmp)> pq(cmp);
+    for (const auto &ele : um) {
+        pq.emplace(ele);
+        if (pq.size() > k)
+            pq.pop();
+    }
+    assert(pq.size() == k);
+    std::vector<std::string> ret;
+    while (!pq.empty()) {
+        ret.emplace_back(pq.top().first);
+        pq.pop();
+    }
+    std::reverse(ret.begin(), ret.end());
+    return ret;
+}
+
+int countSubstrings(string s) {
+    std::string processedStr{"^#"};
+    for (const char c : s) {
+        processedStr.push_back(c);
+        processedStr.push_back('#');
+    }
+    processedStr.push_back('$');
+    int radius[processedStr.size()];
+    radius[0] = radius[1] = 0;
+    int maxCenterI = 1;
+    int ret = 0;
+    for (int i = 2; i < processedStr.size() - 2; i++) {
+        int r = 1;
+        if (maxCenterI + radius[maxCenterI] > i) {
+            r = std::min(radius[2 * maxCenterI - i], maxCenterI + radius[maxCenterI] - i);
+        }
+        while (processedStr[i + r] == processedStr[i - r])
+            r++;
+        radius[i] = --r;
+        if (i + radius[i] > maxCenterI + radius[maxCenterI]) {
+            maxCenterI = i;
+        }
+        ret += (r + 1) / 2;
+    }
+    return ret;
+}
+
+vector<int> nextGreaterElements(vector<int> &nums) {
+    auto it = std::max_element(nums.begin(), nums.end());
+    const int beginIdx = it - nums.begin() + 1;
+    std::vector<int> stk;
+    std::vector<int> ret(nums.size(), -1);
+    for (int i = 0; i < nums.size(); i++) {
+        const int realIdx = (beginIdx + i) % nums.size();
+        while (!stk.empty() && nums[stk.back()] < nums[realIdx]) {
+            ret[stk.back()] = nums[realIdx];
+            stk.pop_back();
+        }
+        stk.emplace_back(realIdx);
+    }
+    return ret;
+}
+
+string longestDupSubstring(string s) {
+    constexpr int MOD = 131313131;
+    const int sz = s.size();
+    if (sz < 2) return "";
+    std::vector<int> pw(sz);
+    pw.front() = 1;
+    for (int i = 1; i < sz; i++) {
+        pw[i] = pw[i - 1] * 128;
+        pw[i] %= MOD;
+    }
+    auto hasDup = [&](const int k) -> int {
+        std::unordered_set<int> us;
+        long sm = 0;
+        for (int i = 0; i < k - 1; i++) {
+            sm = sm * 128 + s[i];
+            sm %= MOD;
+        }
+        for (int i = 0; i <= sz - k; i++) {
+            sm = sm * 128 + s[i + k - 1];
+            sm %= MOD;
+            if (us.count(sm) == 1) return i;
+            us.emplace(sm);
+            sm = (sm - s[i]* pw[k - 1] % MOD + MOD) % MOD;
+        }
+        return -1;
+    };
+    int l = 0, r = sz;
+    int start = -1, len = 0;
+    while (l < r) {
+        const int mid = l + (r - l) / 2;
+        const int st = hasDup(mid);
+        if (st == -1) {
+            r = mid;
+        } else {
+            l = mid + 1;
+            start = st;
+            len = mid;
+        }
+    }
+    if (start != -1) {
+        assert(l > 0);
+        return s.substr(start, len);
+    }
+    return "";
+}
+
 } // namespace A
 
 int main() {
     fp("hello leetcode + fmt\n");
-    std::vector<int> nums{0, 0, 6, 7, 9};
-    auto ret = A::checkDynasty(nums);
-    fp("{}\n", ret);
+    const auto ret = A::longestDupSubstring("abcd");
+    fp("ret: {}\n", ret);
     return 0;
 }
