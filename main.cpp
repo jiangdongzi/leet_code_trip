@@ -1,6 +1,9 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <functional>
 #include <numeric>
 #include <optional>
@@ -18,6 +21,15 @@ struct ListNode {
     int val;
     ListNode *next;
     ListNode(int x) : val(x), next(NULL) {}
+};
+
+struct TreeNode {
+    int val;
+    TreeNode *left;
+    TreeNode *right;
+    TreeNode() : val(0), left(nullptr), right(nullptr) {}
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+    TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}
 };
 
 namespace A {
@@ -435,32 +447,43 @@ vector<int> nextGreaterElements(vector<int> &nums) {
 }
 
 string longestDupSubstring(string s) {
-    constexpr int MOD = 131313131;
     const int sz = s.size();
-    if (sz < 2) return "";
-    std::vector<int> pw(sz);
-    pw.front() = 1;
+    const int MOD = 1e9 + 7;
+    long pw[sz];
+    pw[0] = 1;
     for (int i = 1; i < sz; i++) {
         pw[i] = pw[i - 1] * 128;
         pw[i] %= MOD;
     }
     auto hasDup = [&](const int k) -> int {
-        std::unordered_set<int> us;
+        assert(k > 0 && k < sz);
         long sm = 0;
         for (int i = 0; i < k - 1; i++) {
             sm = sm * 128 + s[i];
             sm %= MOD;
         }
+        std::unordered_map<int, std::vector<int>> um;
         for (int i = 0; i <= sz - k; i++) {
             sm = sm * 128 + s[i + k - 1];
             sm %= MOD;
-            if (us.count(sm) == 1) return i;
-            us.emplace(sm);
-            sm = (sm - s[i]* pw[k - 1] % MOD + MOD) % MOD;
+            auto it = um.find(sm);
+            if (it == um.end()) {
+                um[sm].emplace_back(i);
+            } else {
+                for (const int j : it->second) {
+                    int idx = 0;
+                    while (idx < k && s[i + idx] == s[j + idx])
+                        idx++;
+                    if (idx == k)
+                        return i;
+                }
+                it->second.emplace_back(i);
+            }
+            sm = ((sm - s[i] * pw[k - 1]) % MOD + MOD) % MOD;
         }
         return -1;
     };
-    int l = 0, r = sz;
+    int l = 1, r = sz;
     int start = -1, len = 0;
     while (l < r) {
         const int mid = l + (r - l) / 2;
@@ -473,18 +496,452 @@ string longestDupSubstring(string s) {
             len = mid;
         }
     }
-    if (start != -1) {
-        assert(l > 0);
+    if (start != -1)
         return s.substr(start, len);
-    }
     return "";
+}
+
+vector<vector<int>> pathSum(TreeNode *root, int targetSum) {
+    if (root == nullptr)
+        return {};
+    std::vector<int> tmp;
+    std::vector<std::vector<int>> ret;
+    std::function<void(TreeNode *, const int)> dfs = [&](TreeNode *root, const int k) {
+        if (root == nullptr) {
+            if (k == 0) {
+                ret.emplace_back(tmp);
+            }
+            return;
+        }
+        tmp.emplace_back(root->val);
+        if (root->left == nullptr) {
+            dfs(root->right, k - root->val);
+            tmp.pop_back();
+            return;
+        }
+        if (root->right == nullptr) {
+            dfs(root->left, k - root->val);
+            tmp.pop_back();
+            return;
+        }
+        dfs(root->left, k - root->val);
+        dfs(root->right, k - root->val);
+        tmp.pop_back();
+    };
+    dfs(root, targetSum);
+    return ret;
+}
+
+void solveSudoku(vector<vector<char>> &board) {
+    bool rFlag[9][10]{};
+    bool cFlag[9][10]{};
+    bool boxFlag[9][10]{};
+    for (int i = 0; i < 9; i++) {
+        for (int j = 0; j < 9; j++) {
+            if (board[i][j] == '.')
+                continue;
+            const int x = board[i][j] - '0';
+            rFlag[i][x] = true;
+            cFlag[j][x] = true;
+            boxFlag[i / 3 * 3 + j / 3][x] = true;
+        }
+    }
+    std::function<bool(const int)> dfs = [&](const int start) -> bool {
+        if (start == 81)
+            return true;
+        const int i = start / 9, j = start % 9;
+        if (board[i][j] != '.')
+            return dfs(start + 1);
+        for (int x = 1; x <= 9; x++) {
+            if (rFlag[i][x] || cFlag[j][x] || boxFlag[i / 3 * 3 + j / 3][x])
+                continue;
+            rFlag[i][x] = true;
+            cFlag[j][x] = true;
+            boxFlag[i / 3 * 3 + j / 3][x] = true;
+            board[i][j] = x + '0';
+            if (dfs(start + 1))
+                return true;
+            rFlag[i][x] = false;
+            cFlag[j][x] = false;
+            boxFlag[i / 3 * 3 + j / 3][x] = false;
+        }
+        board[i][j] = '.';
+        return false;
+    };
+    dfs(0);
+}
+
+bool checkInclusion(string s1, string s2) {
+    if (s1.size() > s2.size())
+        return false;
+    int cnt[128]{};
+    for (const char c : s1)
+        cnt[c]++;
+    const int z1 = s1.size();
+    int k = z1;
+    int l = 0, r = 0;
+    while (r < s2.size()) {
+        if (cnt[s2[r++]]-- > 0)
+            k--;
+        if (k > 0)
+            continue;
+        while (cnt[s2[l++]]++ < 0)
+            ;
+        if (r - l + 1 == z1)
+            return true;
+        k = 1;
+    }
+    return false;
+}
+
+int nextGreaterElement(int n) {
+    std::string nStr = std::to_string(n);
+    const int nz = nStr.size();
+    int idx = nz - 2;
+    while (idx >= 0 && nStr[idx] >= nStr[idx + 1])
+        idx--;
+    if (idx == -1)
+        return -1;
+    int anchor = idx++;
+    const char val = nStr[anchor];
+    while (idx < nz && nStr[idx] > val)
+        idx++;
+    std::swap(nStr[anchor], nStr[idx - 1]);
+    std::reverse(nStr.begin() + anchor + 1, nStr.end());
+    const long ret = std::stol(nStr);
+    if (ret > INT32_MAX)
+        return -1;
+    return ret;
+}
+
+int kthSmallest(vector<vector<int>> &matrix, int k) {
+    const int m = matrix.size(), n = matrix[0].size();
+    typedef std::pair<int, int> pii;
+    auto cmp = [&](const pii &a, const pii &b) {
+        return matrix[a.first][a.second] > matrix[b.first][b.second];
+    };
+    std::priority_queue<pii, std::vector<pii>, decltype(cmp)> pq(cmp);
+    for (int i = 0; i < n && i < k; i++) {
+        pq.push({0, i});
+    }
+    while (k-- > 1) {
+        const auto curP = pq.top();
+        pq.pop();
+        if (curP.first + 1 < m) {
+            pq.push({curP.first + 1, curP.second});
+        }
+    }
+    const auto curP = pq.top();
+    return matrix[curP.first][curP.second];
+}
+int findRepeatDocument(vector<int> &documents) {
+    for (int i = 0; i < documents.size(); i++) {
+        while (documents[i] != documents[documents[i]]) {
+            std::swap(documents[i], documents[documents[i]]);
+        }
+    }
+    for (int i = 0; i < documents.size(); i++) {
+        if (i != documents[i]) {
+            return documents[i];
+        }
+    }
+    throw "no repeat data";
+}
+
+class RandomizedSet {
+    std::vector<int> datas;
+    std::unordered_map<int, int> valIdx;
+
+  public:
+    RandomizedSet() {}
+
+    bool insert(int val) {
+        auto it = valIdx.find(val);
+        if (it != valIdx.end())
+            return false;
+        valIdx.emplace(val, datas.size());
+        datas.emplace_back(val);
+        return true;
+    }
+
+    bool remove(int val) {
+        auto it = valIdx.find(val);
+        if (it == valIdx.end())
+            return false;
+        datas[it->second] = datas.back();
+        valIdx[datas.back()] = it->second;
+        datas.pop_back();
+        valIdx.erase(it);
+        return true;
+    }
+
+    int getRandom() {
+        const int idx = std::rand() % datas.size();
+        return datas[idx];
+    }
+};
+
+int numDistinct(string s, string t) {
+    const int sz = s.size(), tz = t.size();
+    if (sz < tz)
+        return 0;
+    unsigned long dp[tz + 1];
+    std::memset(dp, 0, sizeof(dp));
+    dp[0] = 1;
+    for (const char c : s) {
+        for (int i = tz - 1; i >= 0; i--) {
+            if (c == t[i]) {
+                dp[i + 1] += dp[i];
+            }
+        }
+    }
+    return dp[tz];
+}
+
+string convert(string s, int numRows) {
+    if (numRows == 1)
+        return s;
+    std::vector<std::string> vec(numRows);
+    int idx = 0;
+    bool up2down = true;
+    for (const char c : s) {
+        vec[idx].push_back(c);
+        if (up2down) {
+            if (idx == numRows - 1) {
+                idx = numRows - 2;
+                up2down = false;
+            } else {
+                idx++;
+            }
+        } else {
+            if (idx == 0) {
+                idx = 1;
+                up2down = true;
+            } else {
+                idx--;
+            }
+        }
+    }
+    std::string ret;
+    for (const auto &str : vec) {
+        ret.append(str);
+    }
+    return ret;
+}
+
+vector<string> letterCombinations(string digits) {
+    static vector<string> phone_strs = {" ",   "",    "abc",  "def", "ghi",
+                                        "jkl", "mno", "pqrs", "tuv", "wxyz"};
+
+    const int dz = digits.size();
+    std::string tmp;
+    std::vector<std::string> ret;
+    std::function<void(const int)> dfs = [&](const int start) {
+        if (start == dz) {
+            ret.emplace_back(tmp);
+            return;
+        }
+        const std::string &curLetters = phone_strs[digits[start] - '0'];
+        for (const char c : curLetters) {
+            tmp.push_back(c);
+            dfs(start + 1);
+            tmp.pop_back();
+        }
+    };
+    dfs(0);
+    return ret;
+}
+
+int hammingWeight(int n) {
+    int cnt = 0;
+    while (n != 0) {
+        cnt++;
+        n &= (n - 1);
+    }
+    return cnt;
+}
+
+int splitArray(vector<int> &nums, int k) {
+    auto getLeastGroupLEX = [&](const int x) -> int {
+        int cnt = 1;
+        int tmp = 0;
+        for (const int i : nums) {
+            if (tmp + i > x) {
+                cnt++;
+                tmp = i;
+            } else {
+                tmp += i;
+            }
+        }
+        return cnt;
+    };
+    int l = *std::max_element(nums.begin(), nums.end());
+    int r = std::accumulate(nums.begin(), nums.end(), 1);
+    while (l < r) {
+        const int mid = l + (r - l) / 2;
+        if (getLeastGroupLEX(mid) > k) {
+            l = mid + 1;
+        } else {
+            r = mid;
+        }
+    }
+    return l;
+}
+
+int findMin(vector<int> &nums) {
+    int l = 0, r = nums.size() - 1;
+    while (l < r && nums[l] == nums[r])
+        l++;
+    while (l < r) {
+        const int mid = l + (r - l) / 2;
+        if (nums[mid] > nums[r]) {
+            l = mid + 1;
+        } else {
+            r = mid;
+        }
+    }
+    return nums[l];
+}
+typedef std::pair<int, int> pii;
+int rob(TreeNode *root) {
+    int ret = root->val;
+    std::function<pii(TreeNode *)> dfs = [&](TreeNode *root) -> pii {
+        if (root == nullptr) {
+            return {0, 0};
+        }
+        pii l = dfs(root->left);
+        pii r = dfs(root->right);
+        const int maxOfRobRoot = l.second + r.second + root->val;
+        const int maxOfNotRobRoot = l.first + r.first;
+        const int maxOfTotal = std::max(maxOfRobRoot, maxOfNotRobRoot);
+        ret = std::max(maxOfTotal, ret);
+        return {maxOfTotal, maxOfNotRobRoot};
+    };
+    dfs(root);
+    return ret;
+}
+
+string crackPassword(vector<int> &password) {
+    std::vector<std::string> pStrs;
+    for (const int i : password) {
+        pStrs.emplace_back(std::to_string(i));
+    }
+    std::sort(pStrs.begin(), pStrs.end(),
+              [](const std::string &a, const std::string &b) -> bool { return a + b < b + a; });
+    return std::accumulate(pStrs.begin(), pStrs.end(), std::string(""));
+}
+
+vector<int> singleNumber(vector<int> &nums) {
+    int z = 0;
+    for (const int i : nums)
+        z ^= i;
+    z &= (-z);
+    int a = 0, b = 0;
+    for (const int i : nums) {
+        if (i & z) {
+            a ^= i;
+        } else {
+            b ^= i;
+        }
+    }
+    return {a, b};
+}
+
+vector<int> smallestK(vector<int> &arr, int k) {
+    if (k == 0)
+        return {};
+    auto partition = [&](const int left, const int right) {
+        assert(left < right);
+        int p = left - 1;
+        const int pivot = arr[right];
+        for (int i = left; i <= right; i++) {
+            if (arr[i] <= pivot) {
+                std::swap(arr[++p], arr[i]);
+            }
+        }
+        return p;
+    };
+    int l = 0, r = arr.size() - 1;
+    k--;
+    while (l < r) {
+        int p = partition(l, r);
+        if (p < k) {
+            l = p + 1;
+        } else if (p > k) {
+            r = p - 1;
+        } else {
+            l = p;
+        }
+    }
+    arr.resize(l + 1);
+    return arr;
+}
+
+class MyCircularQueue {
+    int *arr;
+    int length;
+    int head, tail;
+
+  public:
+    MyCircularQueue(int k) {
+        arr = new int[k + 1];
+        length = k + 1;
+        head = 0;
+        tail = 0;
+    }
+
+    bool enQueue(int value) {
+        if (isFull())
+            return false;
+        arr[tail] = value;
+        tail = (tail + 1) % length;
+        return true;
+    }
+
+    bool deQueue() {
+        if (isEmpty())
+            return false;
+        head = (head + 1) % length;
+        return true;
+    }
+
+    int Front() {
+        if (isEmpty())
+            return -1;
+        return arr[head];
+    }
+
+    int Rear() {
+        if (isEmpty())
+            return -1;
+        int idx = (tail - 1 + length) % length;
+        return arr[idx];
+    }
+
+    bool isEmpty() { return head == tail; }
+
+    bool isFull() { return (head + length - 1) % length == tail; }
+};
+
+int lengthOfLongestSubstring(string s) {
+    if (s.empty()) return 0;
+    int left = 0, right = 0;
+    int cnt[128]{};
+    int ret = 1;
+    while (right < s.size()) {
+        if (cnt[s[right++]]++ == 0) continue;
+        ret = std::max(ret, right - left - 1);
+        while (cnt[s[left++]]-- == 1);
+    }
+    ret = std::max(ret, (int)s.size() - left);
+    return ret;
 }
 
 } // namespace A
 
 int main() {
     fp("hello leetcode + fmt\n");
-    const auto ret = A::longestDupSubstring("abcd");
+    const auto ret = A::lengthOfLongestSubstring("aa");
     fp("ret: {}\n", ret);
     return 0;
 }

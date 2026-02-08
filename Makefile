@@ -7,7 +7,7 @@ SRC := main.cpp
 OBJ = $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(SRC))
 
 # Debug-friendly build: minimal optimization and full debug info.
-CXXSTD ?= -std=c++20
+CXXSTD ?= -std=c++11
 # Default to quiet builds; override e.g. `make CXXWARN='-Wall -Wextra -Wpedantic'`.
 CXXWARN ?= -w
 CXXFLAGS ?= $(CXXSTD) -Og -g $(CXXWARN)
