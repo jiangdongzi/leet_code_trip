@@ -11,9 +11,13 @@
 #include <queue>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#include <cmath>
+#include <iostream>
 
 #include "lc.hpp"
 using namespace std;
@@ -1280,7 +1284,8 @@ vector<vector<int>> combine(int n, int k) {
     std::vector<int> tmp;
     std::vector<std::vector<int>> ret;
     std::function<void(const int)> dfs = [&](const int start) {
-        if (tmp.size() + n - start + 1 < k) return;
+        if (tmp.size() + n - start + 1 < k)
+            return;
         if (tmp.size() == k) {
             ret.emplace_back(tmp);
             return;
@@ -1295,16 +1300,81 @@ vector<vector<int>> combine(int n, int k) {
     return ret;
 }
 
+vector<string> binaryTreePaths(TreeNode *root) {
+    std::string tmp;
+    std::vector<std::string> ret;
+    std::function<void(TreeNode *)> dfs = [&](TreeNode *root) {
+        if (root == nullptr) {
+            ret.emplace_back(tmp);
+            ret.back().pop_back();
+            ret.back().pop_back();
+            return;
+        }
+        const std::string valStr = std::to_string(root->val);
+        tmp.append(valStr);
+        tmp.append("->");
+        if (root->left == nullptr) {
+            dfs(root->right);
+            tmp.resize(tmp.size() - valStr.size() - 2);
+            return;
+        }
+        if (root->right == nullptr) {
+            dfs(root->left);
+            tmp.resize(tmp.size() - valStr.size() - 2);
+            return;
+        }
+        dfs(root->left);
+        dfs(root->right);
+        tmp.resize(tmp.size() - valStr.size() - 2);
+    };
+    dfs(root);
+    return ret;
+}
+
+int missingNumber(vector<int> &nums) {
+    return (1 + nums.size()) * nums.size() / 2 - std::accumulate(nums.begin(), nums.end(), 0);
+}
+
+vector<int> getMaxMatrix(vector<vector<int>> &matrix) {
+    const int m = matrix.size(), n = matrix[0].size();
+    int sm[n];
+    int maxSoFar = matrix[0][0];
+    int c1 = 0, c2 = 0, d1 = 0, d2 = 0;
+    for (int i = 0; i < m; i++) {
+        std::memset(sm, 0, sizeof(sm));
+        for (int j = i; j < m; j++) {
+            int maxEndingHere = -1;
+            int start = 0;
+            for (int k = 0; k < n; k++) {
+                sm[k] += matrix[j][k];
+                if (maxEndingHere <= 0) {
+                    maxEndingHere = sm[k];
+                } else {
+                    maxEndingHere += sm[k];
+                }
+                if (maxEndingHere < 0) {
+                    start = k + 1;
+                }
+                if (maxEndingHere > maxSoFar) {
+                    maxSoFar = maxEndingHere;
+                    c1 = i;
+                    c2 = start;
+                    d1 = j;
+                    d2 = k;
+                }
+            }
+        }
+    }
+    return {c1, c2, d1, d2};
+}
+
 } // namespace A
 
 int main() {
     fp("hello leetcode + fmt\n");
-    TreeNode *node3 = new TreeNode(3);
-    TreeNode *node1 = new TreeNode(1);
-    TreeNode *node5 = new TreeNode(5);
-    node3->left = node5;
-    node3->right = node1;
-    const auto ret = A::distanceK(node1, node5, 2);
-    fp("ret: {}\n", ret);
+    //[[-1,0],[0,-1]]
+    std::vector<std::vector<int>> matrix{{-1, 0}, {0, -1}};
+    auto res = A::getMaxMatrix(matrix);
+    fp("result: {}\n", res);
     return 0;
 }
