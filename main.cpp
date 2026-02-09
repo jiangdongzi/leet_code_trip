@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cctype>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -924,16 +925,373 @@ class MyCircularQueue {
 };
 
 int lengthOfLongestSubstring(string s) {
-    if (s.empty()) return 0;
+    if (s.empty())
+        return 0;
     int left = 0, right = 0;
     int cnt[128]{};
     int ret = 1;
     while (right < s.size()) {
-        if (cnt[s[right++]]++ == 0) continue;
+        if (cnt[s[right++]]++ == 0)
+            continue;
         ret = std::max(ret, right - left - 1);
-        while (cnt[s[left++]]-- == 1);
+        while (cnt[s[left++]]-- == 1)
+            ;
     }
     ret = std::max(ret, (int)s.size() - left);
+    return ret;
+}
+
+vector<string> removeInvalidParentheses(string s) {
+    std::vector<std::string> ret;
+    std::function<void(string, const int, const int)> rmRight = [&](string str, const int startI,
+                                                                    const int startJ) {
+        int stk = 0;
+        for (int j = startJ; j >= 0; j--) {
+            if (str[j] == ')') {
+                stk++;
+            } else if (str[j] == '(') {
+                stk--;
+            }
+            if (stk < 0) {
+                for (int i = startI; i >= j; i--) {
+                    if (str[i] != '(' || (i < startI && str[i + 1] == '('))
+                        continue;
+                    rmRight(str.substr(0, i) + str.substr(i + 1), i - 1, j - 1);
+                }
+                return;
+            }
+        }
+        ret.emplace_back(str);
+    };
+
+    std::function<void(string, const int, const int)> rmLeft = [&](string str, const int startI,
+                                                                   const int startJ) {
+        int stk = 0;
+        for (int j = startJ; j < str.size(); j++) {
+            if (str[j] == '(') {
+                stk++;
+            } else if (str[j] == ')') {
+                stk--;
+            }
+            if (stk < 0) {
+                for (int i = startI; i <= j; i++) {
+                    if (str[i] != ')' || (i > startI && str[i - 1] == ')'))
+                        continue;
+                    rmLeft(str.substr(0, i) + str.substr(i + 1), i, j);
+                }
+                return;
+            }
+        }
+        rmRight(str, str.size() - 1, str.size() - 1);
+    };
+    rmLeft(s, 0, 0);
+    return ret;
+}
+
+int countNodes(TreeNode *root) {
+    static auto getFullTreeH = [](TreeNode *const root) -> int {
+        int cnt = 0;
+        TreeNode *cur = root;
+        while (cur != nullptr) {
+            cnt++;
+            cur = cur->left;
+        }
+        return cnt;
+    };
+    if (root == nullptr)
+        return 0;
+    int lh = getFullTreeH(root->left);
+    int rh = getFullTreeH(root->right);
+    if (lh == rh) {
+        return std::pow(2, lh) + countNodes(root->right);
+    } else {
+        return countNodes(root->left) + std::pow(2, rh);
+    }
+}
+
+vector<int> searchRange(vector<int> &nums, int target) {
+    int l = 0, r = nums.size();
+    while (l < r) {
+        const int mid = l + (r - l) / 2;
+        if (nums[mid] < target) {
+            l = mid + 1;
+        } else {
+            r = mid;
+        }
+    }
+    if (l == nums.size() || nums[l] != target) {
+        return {-1, -1};
+    }
+    r = nums.size();
+    int first = l;
+    while (l < r) {
+        const int mid = l + (r - l) / 2;
+        if (nums[mid] == target) {
+            l = mid + 1;
+        } else {
+            r = mid;
+        }
+    }
+    return {first, r - 1};
+}
+
+class Solution {
+    std::vector<int> pSm;
+    const int sz;
+
+  public:
+    Solution(vector<int> &w) : sz(w.size()) {
+        pSm.resize(sz);
+        std::partial_sum(w.begin(), w.end(), pSm.begin());
+    }
+
+    int pickIndex() {
+        const int target = std::rand() % pSm.back();
+        int l = 0, r = pSm.size();
+        while (l < r) {
+            const int mid = l + (r - l) / 2;
+            if (pSm[mid] <= target) {
+                l = mid + 1;
+            } else {
+                r = mid;
+            }
+        }
+        return l;
+    }
+};
+
+TreeNode *sortedArrayToBST(vector<int> &nums) {
+    std::function<TreeNode *(const int, const int)> dfs = [&](const int l,
+                                                              const int r) -> TreeNode * {
+        if (l < r)
+            return nullptr;
+        const int mid = l + (r - l) / 2;
+        TreeNode *root = new TreeNode(nums[mid]);
+        root->left = dfs(l, mid - 1);
+        root->right = dfs(mid + 1, r);
+        return root;
+    };
+    return dfs(0, nums.size() - 1);
+}
+
+int maxProfit(int k, vector<int> &prices) {
+    const int pz = prices.size();
+    int dp[k + 1][pz];
+    std::memset(dp, 0, sizeof(dp));
+    for (int i = 1; i <= k; i++) {
+        int maxHold = -prices[0];
+        for (int j = 1; j < pz; j++) {
+            dp[i][j] = std::max(dp[i][j - 1], maxHold + prices[j]);
+            maxHold = std::max(maxHold, dp[i - 1][j - 1] - prices[j]);
+        }
+    }
+    return dp[k][pz - 1];
+}
+
+constexpr static int dirs[4][2]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+void solve(vector<vector<char>> &board) {
+    const int m = board.size(), n = board[0].size();
+    auto isValid = [&](const int i, const int j) { return i >= 0 && i < m && j >= 0 && j < n; };
+    std::function<void(const int, const int)> dfs = [&](const int i, const int j) {
+        if (!isValid(i, j))
+            return;
+        if (board[i][j] != 'O')
+            return;
+        board[i][j] = '#';
+        for (const auto &dir : dirs) {
+            dfs(i + dir[0], j + dir[1]);
+        }
+    };
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            if (i != 0 && i != m - 1 && j != 0 && j != n - 1)
+                continue;
+            dfs(i, j);
+        }
+    }
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            if (board[i][j] == '#') {
+                board[i][j] = 'O';
+            } else if (board[i][j] == 'O') {
+                board[i][j] = 'X';
+            }
+        }
+    }
+}
+
+bool verifyTreeOrder(vector<int> &postorder) {
+    std::vector<int> stk;
+    int curMax = 1000000;
+    for (int i = postorder.size() - 1; i >= 0; i--) {
+        if (postorder[i] >= curMax)
+            return false;
+        while (!stk.empty() && postorder[i] < stk.back()) {
+            curMax = stk.back();
+            stk.pop_back();
+        }
+        stk.emplace_back(postorder[i]);
+    }
+    return true;
+}
+
+std::vector<int> ans;
+
+void getChildreeDistK(TreeNode *root, const int k) {
+    if (root == nullptr || k < 0)
+        return;
+    if (k == 0)
+        ans.emplace_back(root->val);
+    getChildreeDistK(root->left, k - 1);
+    getChildreeDistK(root->right, k - 1);
+}
+
+int distDfs(TreeNode *root, TreeNode *target, const int k) {
+    if (root == nullptr)
+        return -1;
+    if (root == target)
+        return 0;
+    const int l = distDfs(root->left, target, k);
+    if (l != -1) {
+        if (l + 1 == k) {
+            ans.emplace_back(root->val);
+        } else if (l + 1 < k) {
+            getChildreeDistK(root->right, k - l - 2);
+        }
+        return l + 1;
+    }
+    const int r = distDfs(root->right, target, k);
+    if (r != -1) {
+        if (r + 1 == k) {
+            ans.emplace_back(root->val);
+        } else if (r + 1 < k) {
+            getChildreeDistK(root->left, k - r - 2);
+        }
+        return r + 1;
+    }
+    return -1;
+}
+
+vector<int> distanceK(TreeNode *root, TreeNode *target, int k) {
+    getChildreeDistK(target, k);
+    distDfs(root, target, k);
+    return ans;
+}
+
+int removeDuplicates(vector<int> &nums) {
+    if (nums.size() < 3)
+        return nums.size();
+    int p = 1;
+    for (int i = 2; i < nums.size(); i++) {
+        if (nums[i] == nums[p - 1])
+            continue;
+        nums[++p] = nums[i];
+    }
+    return p + 1;
+}
+
+int findLengthOfLCIS(vector<int> &nums) {
+    if (nums.size() < 2)
+        return nums.size();
+    nums.emplace_back(INT32_MIN);
+    int ret = 1;
+    int start = 0;
+    for (int i = 1; i < nums.size(); i++) {
+        if (nums[i] > nums[i - 1])
+            continue;
+        ret = std::max(ret, i - start);
+        start = i;
+    }
+    return ret;
+}
+
+vector<int> twoSum(vector<int> &numbers, int target) {
+    int l = 0, r = numbers.size() - 1;
+    while (l < r) {
+        const int sm = numbers[l] + numbers[r];
+        if (sm < target) {
+            l++;
+        } else if (sm > target) {
+            r--;
+        } else {
+            return {l + 1, r + 1};
+        }
+    }
+    return {};
+}
+
+bool isSameTree(TreeNode *p, TreeNode *q) {
+    if (p == nullptr)
+        return q == nullptr;
+    if (q == nullptr)
+        return false;
+    return p->val == q->val && isSameTree(p->left, q->left) && isSameTree(p->right, q->right);
+}
+
+bool isAnagram(string s, string t) {
+    if (s.size() != t.size())
+        return false;
+    int cnt[128]{};
+    for (const char c : s)
+        cnt[c]++;
+    int k = s.size();
+    int l = 0, r = 0;
+    while (r < s.size()) {
+        if (cnt[t[r++]]-- > 0)
+            k--;
+    }
+    return k == 0;
+}
+
+string reverseWords(string s) {
+    int idx = 0, sz = s.size();
+    while (idx < sz) {
+        while (idx < sz && std::isspace(s[idx]))
+            idx++;
+        if (idx == sz)
+            break;
+        int start = idx++;
+        while (idx < sz && !std::isspace(s[idx]))
+            idx++;
+        std::reverse(s.begin() + start, s.begin() + idx);
+    }
+    return s;
+}
+
+vector<int> sortedSquares(vector<int> &nums) {
+    int l = 0, r = nums.size() - 1;
+    std::vector<int> ret(nums.size());
+    int p = nums.size();
+    while (l <= r) {
+        const int lVal = nums[l];
+        const int rVal = nums[r];
+        if (lVal * lVal > rVal * rVal) {
+            ret[--p] = lVal * lVal;
+            l++;
+        } else {
+            ret[--p] = rVal * rVal;
+            r--;
+        }
+    }
+    return ret;
+}
+
+vector<vector<int>> combine(int n, int k) {
+    std::vector<int> tmp;
+    std::vector<std::vector<int>> ret;
+    std::function<void(const int)> dfs = [&](const int start) {
+        if (tmp.size() + n - start + 1 < k) return;
+        if (tmp.size() == k) {
+            ret.emplace_back(tmp);
+            return;
+        }
+        for (int i = start; i <= n; i++) {
+            tmp.emplace_back(i);
+            dfs(i + 1);
+            tmp.pop_back();
+        }
+    };
+    dfs(1);
     return ret;
 }
 
@@ -941,7 +1299,12 @@ int lengthOfLongestSubstring(string s) {
 
 int main() {
     fp("hello leetcode + fmt\n");
-    const auto ret = A::lengthOfLongestSubstring("aa");
+    TreeNode *node3 = new TreeNode(3);
+    TreeNode *node1 = new TreeNode(1);
+    TreeNode *node5 = new TreeNode(5);
+    node3->left = node5;
+    node3->right = node1;
+    const auto ret = A::distanceK(node1, node5, 2);
     fp("ret: {}\n", ret);
     return 0;
 }
