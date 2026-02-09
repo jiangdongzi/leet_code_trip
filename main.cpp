@@ -18,6 +18,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <limits>
 
 #include "lc.hpp"
 using namespace std;
@@ -1336,36 +1337,48 @@ int missingNumber(vector<int> &nums) {
 }
 
 vector<int> getMaxMatrix(vector<vector<int>> &matrix) {
-    const int m = matrix.size(), n = matrix[0].size();
-    int sm[n];
-    int maxSoFar = matrix[0][0];
-    int c1 = 0, c2 = 0, d1 = 0, d2 = 0;
-    for (int i = 0; i < m; i++) {
-        std::memset(sm, 0, sizeof(sm));
-        for (int j = i; j < m; j++) {
-            int maxEndingHere = -1;
-            int start = 0;
-            for (int k = 0; k < n; k++) {
-                sm[k] += matrix[j][k];
-                if (maxEndingHere <= 0) {
-                    maxEndingHere = sm[k];
+    const int m = static_cast<int>(matrix.size());
+    if (m == 0) {
+        return {};
+    }
+    const int n = static_cast<int>(matrix[0].size());
+    if (n == 0) {
+        return {};
+    }
+
+    std::vector<int> sm(n, 0);
+    int maxSoFar = std::numeric_limits<int>::min();
+    int bestTop = 0, bestLeft = 0, bestBottom = 0, bestRight = 0;
+
+    for (int top = 0; top < m; top++) {
+        std::fill(sm.begin(), sm.end(), 0);
+        for (int bottom = top; bottom < m; bottom++) {
+            for (int col = 0; col < n; col++) {
+                sm[col] += matrix[bottom][col];
+            }
+
+            int maxEndingHere = 0;
+            int curLeft = 0;
+            for (int col = 0; col < n; col++) {
+                if (col == 0 || maxEndingHere <= 0) {
+                    maxEndingHere = sm[col];
+                    curLeft = col;
                 } else {
-                    maxEndingHere += sm[k];
+                    maxEndingHere += sm[col];
                 }
-                if (maxEndingHere < 0) {
-                    start = k + 1;
-                }
+
                 if (maxEndingHere > maxSoFar) {
                     maxSoFar = maxEndingHere;
-                    c1 = i;
-                    c2 = start;
-                    d1 = j;
-                    d2 = k;
+                    bestTop = top;
+                    bestLeft = curLeft;
+                    bestBottom = bottom;
+                    bestRight = col;
                 }
             }
         }
     }
-    return {c1, c2, d1, d2};
+
+    return {bestTop, bestLeft, bestBottom, bestRight};
 }
 
 } // namespace A
