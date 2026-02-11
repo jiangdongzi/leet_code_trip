@@ -2683,20 +2683,102 @@ bool checkSubarraySum(vector<int> &nums, int k) {
     std::partial_sum(nums.begin(), nums.end(), psm.begin() + 1);
     std::unordered_map<int, int> um;
     um.reserve(2 * nz);
+    auto r = um.emplace(0, 0);
+    auto pre_it = r.first;
     for (int i = 1; i < psm.size(); i++) {
-        auto ret = um.emplace(psm[i], 0);
+        auto ret = um.emplace(psm[i] % k, 0);
+        if (ret.first->second == 1)
+            return true;
+        pre_it->second = 1;
+        pre_it = ret.first;
     }
     return false;
+}
+
+int subarraysDivByK(vector<int> &nums, int k) {
+    int um[k + 1];
+    std::memset(um, 0, sizeof(um));
+    um[0] = 1;
+    long sum = 0;
+    int ret = 0;
+    for (const int i : nums) {
+        sum += i;
+        ret += um[(k + sum % k) % k]++;
+    }
+    return ret;
+}
+
+bool isHappy(int n) {
+    auto next = [](int n) -> int {
+        int ret = 0;
+        while (n > 0) {
+            const int d = n % 10;
+            ret += d * d;
+            n /= 10;
+        }
+        return ret;
+    };
+    if (n == 1)
+        return true;
+    std::unordered_set<int> us{n};
+    while (true) {
+        n = next(n);
+        if (n == 1)
+            return true;
+        if (!us.emplace(n).second)
+            return false;
+    }
+}
+
+vector<int> countSmaller(vector<int> &nums) {
+    const int nz = nums.size();
+    auto getHigh = [](const long i) -> long { return i >> 32; };
+    auto getLow = [](const long i) -> long { return int(i); };
+    auto buildL = [](const long h, const uint32_t l) -> long { return (h << 32) | l; };
+    std::vector<long> compositeNums(nz);
+    for (int i = 0; i < nz; i++) {
+        compositeNums[i] = buildL(i, nums[i]);
+    }
+    std::vector<int> ret(nz, 0);
+    auto merge = [&](const int l, const int mid, const int r) {
+        int i = l, j = mid;
+        long tmp[r - l];
+        int p = -1;
+        while (i < mid && j < r) {
+            const long realI = getLow(compositeNums[i]);
+            const long realJ = getLow(compositeNums[j]);
+            if (realI > realJ) {
+                const int idx = getHigh(compositeNums[i]);
+                ret[idx] += r - j;
+                tmp[++p] = compositeNums[i++];
+            } else {
+                tmp[++p] = compositeNums[j++];
+            }
+        }
+        if (l < mid) {
+            std::memcpy(tmp + p + 1, compositeNums.data() + i, (mid - i) * 8);
+        } else {
+            std::memcpy(tmp + p + 1, compositeNums.data() + j, (r - j) * 8);
+        }
+        std::memcpy(compositeNums.data() + l, tmp, sizeof(tmp));
+    };
+    std::function<void(const int, const int)> mergeSort = [&](const int l, const int r) {
+        if (l >= r)
+            return;
+        const int mid = l + (r - l) / 2;
+        mergeSort(l, mid);
+        mergeSort(mid + 1, r);
+        merge(l, mid + 1, r + 1);
+    };
+    mergeSort(0, nz - 1);
+    return ret;
 }
 
 } // namespace B
 
 int main() {
-    // const auto ret = B::isAdditiveNumber("112");
-    // fp("ret: {}\n", ret);
-    std::unordered_map<int, int> um;
-    um[1] = 37;
-    auto res = um.emplace(1, 13);
-    fp("res: {}\n", res);
+    std::vector<int> nums{5, 2, 6, 1};
+    const auto ret = B::countSmaller(nums);
+    fp("ret: {}\n", ret);
     return 0;
 }
