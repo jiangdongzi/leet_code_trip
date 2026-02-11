@@ -2774,6 +2774,8 @@ vector<int> countSmaller(vector<int> &nums) {
     return ret;
 }
 
+
+
 } // namespace B
 
 int main() {

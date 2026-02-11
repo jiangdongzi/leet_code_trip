@@ -2,3 +2,4 @@ build/
 hello
 hello_asan
 core*
+test_decstr
