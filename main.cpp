@@ -4014,7 +4014,7 @@ bool isPalindrome(ListNode *head) {
     return true;
 }
 
-int maxProfit3(vector<int> &prices) {
+int maxProfit2(vector<int> &prices) {
     int hold = -prices[0], sell = 0;
     for (const int i : prices) {
         sell = std::max(sell, hold + i);
