@@ -41,7 +41,7 @@ LDLIBS += $(if $(strip $(FMT_LIBS)),$(FMT_LIBS),-lfmt)
 
 .PHONY: all asan run run-asan gdb clean test
 .PHONY: format
-.PHONY: practice practice-check
+.PHONY: practice practice-check practice_function_run practice_function_check
 
 all: $(TARGET)
 
@@ -83,9 +83,13 @@ $(PRACTICE_TARGET): $(PRACTICE_OBJ)
 practice: $(PRACTICE_TARGET)
 	./$(PRACTICE_TARGET)
 
+practice_function_run: practice
+
 practice-check:
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DPRACTICE_RUN -MF $(BUILD_DIR)/practice_function_check.d -MT $(PRACTICE_TARGET) -o $(PRACTICE_TARGET) $(PRACTICE_SRC) $(LDLIBS)
 	./$(PRACTICE_TARGET)
+
+practice_function_check: practice-check
 
 asan:
 	$(MAKE) TARGET=hello_asan BUILD_DIR=build/asan CXXFLAGS+='$(ASAN_CXXFLAGS)' LDFLAGS+='$(ASAN_LDFLAGS)' all
