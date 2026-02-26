@@ -132,12 +132,25 @@ static void test_is_void() {
     expectTrue(!std::is_void<int>::value, "is_void<int> == false");
 }
 
+template <class T>
+static void foo_template(T arg) {
+    //print arg type_info, is arg int or int& or int&&
+    std::cout << "arg type: " << typeid(arg).name() << "\n";
+}
+
+static void test_template_magic() {
+    int x = 1;
+    foo_template(x); // should print int&
+    foo_template(2); // should print int&&
+}
+
 int main() {
     test_remove_reference_and_move_forward();
     test_decay();
     test_enable_if();
     test_disable_ctor_pattern();
     test_is_void();
+    test_template_magic();
 
     if (failures == 0) {
         std::cout << "OKK\n";
