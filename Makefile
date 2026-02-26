@@ -6,6 +6,10 @@ TARGET ?= hello
 SRC := main.cpp
 OBJ = $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(SRC))
 
+PRACTICE_TARGET ?= practice_function
+PRACTICE_SRC := practice_function.cpp
+PRACTICE_OBJ = $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(PRACTICE_SRC))
+
 TEST_TARGET ?= test_decstr
 TEST_BUILD_DIR ?= build/test
 TEST_SRC := test_decstr.cpp
@@ -37,10 +41,11 @@ LDLIBS += $(if $(strip $(FMT_LIBS)),$(FMT_LIBS),-lfmt)
 
 .PHONY: all asan run run-asan gdb clean test
 .PHONY: format
+.PHONY: practice practice-check
 
 all: $(TARGET)
 
-DEP = $(OBJ:.o=.d) $(TEST_OBJ:.o=.d) $(STL_TEST_OBJ:.o=.d) $(TM_TEST_OBJ:.o=.d)
+DEP = $(OBJ:.o=.d) $(PRACTICE_OBJ:.o=.d) $(TEST_OBJ:.o=.d) $(STL_TEST_OBJ:.o=.d) $(TM_TEST_OBJ:.o=.d)
 -include $(DEP)
 
 $(TARGET): $(OBJ)
@@ -72,6 +77,16 @@ test: $(TEST_TARGET) $(STL_TEST_TARGET) $(TM_TEST_TARGET)
 	./$(STL_TEST_TARGET)
 	./$(TM_TEST_TARGET)
 
+$(PRACTICE_TARGET): $(PRACTICE_OBJ)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+practice: $(PRACTICE_TARGET)
+	./$(PRACTICE_TARGET)
+
+practice-check:
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DPRACTICE_RUN -MF $(BUILD_DIR)/practice_function_check.d -MT $(PRACTICE_TARGET) -o $(PRACTICE_TARGET) $(PRACTICE_SRC) $(LDLIBS)
+	./$(PRACTICE_TARGET)
+
 asan:
 	$(MAKE) TARGET=hello_asan BUILD_DIR=build/asan CXXFLAGS+='$(ASAN_CXXFLAGS)' LDFLAGS+='$(ASAN_LDFLAGS)' all
 
@@ -85,7 +100,7 @@ gdb: $(TARGET)
 	gdb -q ./$(TARGET)
 
 clean:
-	rm -rf build hello hello_asan $(TEST_TARGET) $(STL_TEST_TARGET) $(TM_TEST_TARGET)
+	rm -rf build hello hello_asan $(TEST_TARGET) $(STL_TEST_TARGET) $(TM_TEST_TARGET) $(PRACTICE_TARGET)
 
 format:
 	clang-format -i $$(find . -path ./build -prune -o -path ./.git -prune -o \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' -o -name '*.h' -o -name '*.hpp' \) -print)
