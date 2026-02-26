@@ -3,3 +3,4 @@ hello
 hello_asan
 core*
 test_decstr
+test_stl_immitate
