@@ -15,6 +15,10 @@ STL_TEST_TARGET ?= test_stl_immitate
 STL_TEST_SRC := test_stl_immitate.cpp
 STL_TEST_OBJ = $(patsubst %.cpp,$(TEST_BUILD_DIR)/%.o,$(STL_TEST_SRC))
 
+TM_TEST_TARGET ?= test_template_magic
+TM_TEST_SRC := test_template_magic.cpp
+TM_TEST_OBJ = $(patsubst %.cpp,$(TEST_BUILD_DIR)/%.o,$(TM_TEST_SRC))
+
 # Debug-friendly build: minimal optimization and full debug info.
 CXXSTD ?= -std=c++11
 # Default to quiet builds; override e.g. `make CXXWARN='-Wall -Wextra -Wpedantic'`.
@@ -36,7 +40,7 @@ LDLIBS += $(if $(strip $(FMT_LIBS)),$(FMT_LIBS),-lfmt)
 
 all: $(TARGET)
 
-DEP = $(OBJ:.o=.d) $(TEST_OBJ:.o=.d) $(STL_TEST_OBJ:.o=.d)
+DEP = $(OBJ:.o=.d) $(TEST_OBJ:.o=.d) $(STL_TEST_OBJ:.o=.d) $(TM_TEST_OBJ:.o=.d)
 -include $(DEP)
 
 $(TARGET): $(OBJ)
@@ -54,15 +58,19 @@ $(TEST_TARGET): $(TEST_OBJ)
 $(STL_TEST_TARGET): $(STL_TEST_OBJ)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
+$(TM_TEST_TARGET): $(TM_TEST_OBJ)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
 $(TEST_BUILD_DIR)/%.o: %.cpp Makefile | $(TEST_BUILD_DIR)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
 
 $(TEST_BUILD_DIR):
 	mkdir -p $(TEST_BUILD_DIR)
 
-test: $(TEST_TARGET) $(STL_TEST_TARGET)
+test: $(TEST_TARGET) $(STL_TEST_TARGET) $(TM_TEST_TARGET)
 	./$(TEST_TARGET)
 	./$(STL_TEST_TARGET)
+	./$(TM_TEST_TARGET)
 
 asan:
 	$(MAKE) TARGET=hello_asan BUILD_DIR=build/asan CXXFLAGS+='$(ASAN_CXXFLAGS)' LDFLAGS+='$(ASAN_LDFLAGS)' all
@@ -77,7 +85,7 @@ gdb: $(TARGET)
 	gdb -q ./$(TARGET)
 
 clean:
-	rm -rf build hello hello_asan $(TEST_TARGET) $(STL_TEST_TARGET)
+	rm -rf build hello hello_asan $(TEST_TARGET) $(STL_TEST_TARGET) $(TM_TEST_TARGET)
 
 format:
 	clang-format -i $$(find . -path ./build -prune -o -path ./.git -prune -o \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' -o -name '*.h' -o -name '*.hpp' \) -print)

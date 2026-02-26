@@ -4,3 +4,4 @@ hello_asan
 core*
 test_decstr
 test_stl_immitate
+test_template_magic
