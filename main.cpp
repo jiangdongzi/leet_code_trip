@@ -25,6 +25,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <utility>
 
 #include "lc.hpp"
 using namespace std;
@@ -5020,10 +5021,1351 @@ int maxProfit(vector<int> &prices) {
     return ret;
 }
 
+int minFlipsMonoIncr(string s) {
+    int cntOne = 0, ret = 0;
+    for (const char c : s) {
+        if (c == '1') {
+            cntOne++;
+        } else {
+            ret = std::min(ret + 1, cntOne);
+        }
+    }
+    return ret;
+}
+
+vector<vector<int>> subsetsWithDup(vector<int> &nums) {
+    std::sort(nums.begin(), nums.end());
+    std::vector<int> tmp;
+    std::vector<std::vector<int>> ret;
+    std::function<void(int)> dfs = [&](const int start) {
+        ret.emplace_back(tmp);
+        if (start == nums.size())
+            return;
+        for (int i = start; i < nums.size(); i++) {
+            if (i > start && nums[i] == nums[i - 1])
+                continue;
+            tmp.emplace_back(nums[i]);
+            dfs(i + 1);
+            tmp.pop_back();
+        }
+    };
+    dfs(0);
+    return ret;
+}
+
+int largestPerimeter(vector<int> &nums) {
+    std::sort(nums.rbegin(), nums.rend());
+    for (int i = 0; i + 3 <= nums.size(); i++) {
+        if (nums[i] < nums[i + 1] + nums[i + 2]) {
+            return nums[i] + nums[i + 1] + nums[i + 2];
+        }
+    }
+    return 0;
+}
+
+bool validSquare(vector<int> &p1, vector<int> &p2, vector<int> &p3, vector<int> &p4) {
+    auto getLenSquare = [](const vector<int> &a, const vector<int> &b) -> int {
+        const int x = a[0] - b[0];
+        const int y = a[1] - b[1];
+        return x * x + y * y;
+    };
+    std::unordered_set<int> us{
+        getLenSquare(p1, p2), getLenSquare(p1, p3), getLenSquare(p1, p4),
+        getLenSquare(p2, p3), getLenSquare(p2, p4), getLenSquare(p3, p4),
+    };
+    return us.size() == 2 && us.count(0) == 0;
+}
+
+int mincostTickets(vector<int> &days, vector<int> &costs) {
+    std::vector<int> cache(367, -1);
+    std::function<int(const int)> dfs = [&](const int start) -> int {
+        if (start > days.back())
+            return 0;
+        int l = 0, r = days.size() - 1;
+        while (l < r) {
+            const int mid = l + (r - l) / 2;
+            if (days[mid] < start) {
+                l = mid + 1;
+            } else {
+                r = mid;
+            }
+        }
+        const int d = days[l];
+        int &memo = cache[d];
+        if (memo != -1)
+            return memo;
+        int oneD = costs[0] + dfs(d + 1);
+        int sevenD = costs[1] + dfs(d + 7);
+        int thirtyD = costs[2] + dfs(d + 30);
+        return memo = std::min(oneD, std::min(sevenD, thirtyD));
+    };
+    return dfs(0);
+}
+
+int monotoneIncreasingDigits(int n) {
+    std::string str = std::to_string(n);
+    int i = 1;
+    while (i < str.size() && str[i] >= str[i - 1])
+        i++;
+    if (i == str.size())
+        return n;
+    int j = i - 2;
+    while (j >= 0 && str[j] == str[j + 1])
+        j--;
+    str[++j]--;
+    while (j + 1 < str.size())
+        str[++j] = '9';
+    return std::stoi(str);
+}
+
+int islandPerimeter(vector<vector<int>> &grid) {
+    const int m = grid.size(), n = grid[0].size();
+    constexpr static int dirs[4][2]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    auto isValid = [&](const int i, const int j) { return i >= 0 && i < m && j >= 0 && j < n; };
+    int ret = 0;
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            if (grid[i][j] == 0)
+                continue;
+            for (const auto &dir : dirs) {
+                const int ii = i + dir[0], jj = j + dir[1];
+                if (!isValid(ii, jj) || grid[ii][jj] == 0)
+                    ret++;
+            }
+        }
+    }
+    return ret;
+}
+
+int lastStoneWeightII(vector<int> &stones) {
+    int sm = 0;
+    for (int &i : stones) {
+        sm += i;
+        i *= 2;
+    }
+    int dp[sm + 1];
+    std::memset(dp, 0, sizeof(dp));
+    for (const int coin : stones) {
+        for (int i = sm; i >= coin; i--) {
+            dp[i] = std::max(dp[i], dp[i - coin] + coin);
+        }
+    }
+    return sm - dp[sm];
+}
+
+ListNode *insertionSortList(ListNode *head) {
+    ListNode dummy(0);
+    auto findFirstLENode = [&](const int val) -> ListNode * {
+        ListNode *ptr = &dummy;
+        while (ptr->next != nullptr && ptr->next->val < val)
+            ptr = ptr->next;
+        return ptr;
+    };
+    auto insertAfter = [](ListNode *preNode, ListNode *toBeInsertedNode) {
+        toBeInsertedNode->next = preNode->next;
+        preNode->next = toBeInsertedNode;
+    };
+    auto insertToSortedList = [&](ListNode *ptr) {
+        auto *preNode = findFirstLENode(ptr->val);
+        insertAfter(preNode, ptr);
+    };
+    while (head != nullptr) {
+        ListNode *tmp = head->next;
+        insertToSortedList(head);
+        head = tmp;
+    }
+    return dummy.next;
+}
+
+vector<int> smallestRange(vector<vector<int>> &nums) {
+    auto encodeLong = [](const int h, const int l) -> long { return ((long)h << 32) | l; };
+    auto getH = [](const long a) -> int { return (int)(a >> 32); };
+    auto getL = [](const long a) -> int { return a; };
+    std::vector<long> numGroup;
+    for (int i = 0; i < nums.size(); i++) {
+        const auto &curVec = nums[i];
+        for (int j = 0; j < curVec.size(); j++) {
+            numGroup.emplace_back(encodeLong(curVec[j], i));
+        }
+    }
+    std::sort(numGroup.begin(), numGroup.end());
+    // fp("numGroup: {}\n", numGroup);
+    std::vector<short> cnt(nums.size());
+    int k = cnt.size();
+    int l = 0, r = 0;
+    int start = -1, len = 10000000;
+    while (r < numGroup.size()) {
+        if (cnt[getL(numGroup[r++])]++ == 0)
+            k--;
+        if (k > 0)
+            continue;
+        while (cnt[getL(numGroup[l++])]-- > 1)
+            ;
+        k = 1;
+        // fp("start: {}, end: {}, numGroup[l - 1]: {}\n", getH(numGroup[l - 1]), getH(numGroup[r -
+        // 1]), numGroup[l - 1]);
+        if (getH(numGroup[r - 1]) - getH(numGroup[l - 1]) < len) {
+            start = getH(numGroup[l - 1]);
+            len = getH(numGroup[r - 1]) - getH(numGroup[l - 1]);
+        }
+    }
+    return {start, start + len};
+}
+
+int leastInterval(vector<char> &tasks, int n) {
+    short cnt[128]{};
+    for (const char c : tasks)
+        cnt[c]++;
+    const int maxNum = *std::max_element(cnt + 'A', cnt + 'Z' + 1);
+    int maxCnt = 0;
+    for (int i = 'A'; i <= 'Z'; i++) {
+        if (cnt[i] == maxNum)
+            maxCnt++;
+    }
+    return std::max((int)tasks.size(), (n + 1) * (maxNum - 1) + maxCnt);
+}
+
+int maxProduct(TreeNode *root) {
+    std::function<int(TreeNode *)> getSm = [&](TreeNode *root) -> int {
+        if (root == nullptr)
+            return 0;
+        const int l = getSm(root->left);
+        const int r = getSm(root->right);
+        return l + r + root->val;
+    };
+    const long sm = getSm(root);
+    long ret = 0;
+    std::function<int(TreeNode *)> dfs = [&](TreeNode *root) -> int {
+        if (root == nullptr)
+            return 0;
+        const long l = dfs(root->left);
+        const long r = dfs(root->right);
+
+        ret = std::max(ret, l * (sm - l));
+        ret = std::max(ret, r * (sm - r));
+
+        return (l + r + root->val) % 1000000007;
+    };
+    dfs(root);
+    return ret % 1000000007;
+}
+
+TreeNode *pruneTree(TreeNode *root) {
+    if (root == nullptr)
+        return nullptr;
+    TreeNode *l = pruneTree(root->left);
+    TreeNode *r = pruneTree(root->right);
+    root->left = l;
+    root->right = r;
+    if (l == nullptr && r == nullptr && root->val == 0)
+        return nullptr;
+    return root;
+}
+
+vector<double> calcEquation(vector<vector<string>> &equations, vector<double> &values,
+                            vector<vector<string>> &queries) {
+
+    using Edge = std::pair<std::string, double>;
+    std::unordered_map<std::string, std::unordered_map<std::string, double>> graph;
+    std::vector<std::string> vertVec;
+    const int z = values.size();
+    for (int i = 0; i < z; i++) {
+        const std::string &a = equations[i][0];
+        const std::string &b = equations[i][1];
+        const double ab = values[i];
+        const double ba = 1 / values[i];
+        graph[a].emplace(b, ab);
+        graph[b].emplace(a, ba);
+        vertVec.emplace_back(a);
+        vertVec.emplace_back(b);
+    }
+    constexpr char WHITE = 0, GRAY = 1, BLACK = 2;
+    std::unordered_map<std::string, char> colors;
+    std::function<void(const std::string &)> dfs = [&](const std::string &vert) {
+        if (colors[vert] != WHITE)
+            return;
+        colors[vert] = GRAY;
+
+        std::vector<Edge> newEdge;
+        for (const auto &ele : graph[vert]) {
+            const std::string &newVert = ele.first;
+            const double num = ele.second;
+            dfs(newVert);
+
+            // if (vert == "c") {
+            //     fp("newVert: {}\n", newVert);
+            //     fp("graph[newVert]: {}\n", graph[newVert]);
+            // }
+            for (const auto &e : graph[newVert]) {
+                newEdge.emplace_back(e.first, num * e.second);
+            }
+        }
+        auto &curMp = graph[vert];
+        for (const auto &e : newEdge) {
+            curMp.emplace(e);
+            graph[e.first].emplace(vert, 1 / e.second);
+        }
+
+        colors[vert] = BLACK;
+    };
+    for (const std::string &i : vertVec) {
+        dfs(i);
+    }
+    std::vector<double> ret;
+    for (int i = 0; i < queries.size(); i++) {
+        std::string &a = queries[i][0];
+        std::string &b = queries[i][1];
+        auto &curMp = graph[a];
+        auto it = curMp.find(b);
+        if (it == curMp.end()) {
+            ret.emplace_back(-1);
+        } else {
+            ret.emplace_back(it->second);
+        }
+    }
+    // fp("graph: {}\n", graph);
+    return ret;
+}
+
+bool judgeSquareSum(int c) {
+    const int sq = std::pow(c, 0.5);
+    int l = 0, r = sq;
+    while (l < r) {
+        const int sm = l * l + r * r;
+        if (sm > c) {
+            r--;
+        } else if (sm < c) {
+            l++;
+        } else {
+            return true;
+        }
+    }
+    return false;
+}
+
+class Trie {
+    struct Node {
+        Node *children[128]{};
+        int wl{};
+    };
+
+  public:
+    Trie() : root{new Node} {}
+    Node *root;
+    void insertWord(const std::string &word) {
+        Node *cursor = root;
+        for (auto it = word.rbegin(); it != word.rend(); it++) {
+            const char c = *it;
+            if (cursor->children[c] == nullptr) {
+                cursor->children[c] = new Node;
+            }
+            cursor = cursor->children[c];
+            cursor->wl = word.size();
+        }
+    }
+    int leafNum = 0;
+
+    bool isLeaf(const Node *root) {
+        for (unsigned char c = 'a'; c <= 'z'; ++c) {
+            if (root->children[c] != nullptr)
+                return false;
+        }
+        return true;
+    }
+    int dfs(Node *root) {
+        if (root == nullptr)
+            return 0;
+        if (isLeaf(root)) {
+            leafNum++;
+            return root->wl;
+        }
+        int ans = 0;
+        for (int i = 'a'; i <= 'z'; i++) {
+            ans += dfs(root->children[i]);
+        }
+        return ans;
+    }
+};
+
+int minimumLengthEncoding(vector<string> &words) {
+    Trie t;
+    for (const std::string &word : words) {
+        t.insertWord(word);
+    }
+    return t.dfs(t.root) + t.leafNum;
+}
+
+string removeDuplicates(string s, int k) {
+    const int sz = s.size();
+    std::vector<std::pair<char, int>> stk;
+    for (const char c : s) {
+        if (stk.empty() || stk.back().first != c) {
+            stk.emplace_back(c, 1);
+        } else {
+            stk.back().second++;
+        }
+        if (stk.back().second == k)
+            stk.pop_back();
+    }
+    std::string ret;
+    for (const auto &ele : stk) {
+        ret.append(ele.second, ele.first);
+    }
+    return ret;
+}
+
 } // namespace C
+namespace D {
+
+class Trie {
+  public:
+    struct Node {
+        Node *children[128]{};
+        std::string word;
+    };
+
+  private:
+    void insertWord(const std::string &word) {
+        Node *cursor = root;
+        for (const char c : word) {
+            if (cursor->children[c] == nullptr) {
+                cursor->children[c] = new Node;
+            }
+            cursor = cursor->children[c];
+        }
+        cursor->word = word;
+    }
+    void insertWords(const std::vector<std::string> &words) {
+        for (const auto &w : words)
+            insertWord(w);
+    }
+
+  public:
+    Node *root = new Node;
+    Trie(const std::vector<std::string> &words) { insertWords(words); }
+};
+
+vector<string> findWords(vector<vector<char>> &board, vector<string> &words) {
+    Trie te(words);
+    std::vector<std::string> ret;
+    const int m = board.size(), n = board[0].size();
+    constexpr static int dirs[4][2]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    auto isValid = [&](const int i, const int j) { return i >= 0 && i < m && j >= 0 && j < n; };
+    std::vector<std::vector<char>> visited(m, std::vector<char>(n));
+    std::function<void(const int, const int, Trie::Node *)> dfs = [&](const int i, const int j,
+                                                                      Trie::Node *cursor) {
+        if (cursor == nullptr)
+            return;
+        if (visited[i][j])
+            return;
+        visited[i][j] = 1;
+        cursor = cursor->children[board[i][j]];
+        if (cursor == nullptr) {
+            visited[i][j] = 0;
+            return;
+        }
+        if (!cursor->word.empty()) {
+            ret.emplace_back(cursor->word);
+            cursor->word.clear();
+        }
+        for (const auto &d : dirs) {
+            const int ii = i + d[0], jj = j + d[1];
+            if (!isValid(ii, jj))
+                continue;
+            dfs(ii, jj, cursor);
+        }
+        visited[i][j] = 0;
+    };
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            dfs(i, j, te.root);
+        }
+    }
+    return ret;
+}
+
+bool isIsomorphic(string s, string t) {
+    if (s.size() != t.size())
+        return false;
+    char s2t[128]{};
+    char t2s[128]{};
+    for (int i = 0; i < s.size(); i++) {
+        const char x = s[i], y = t[i];
+        const char xx = s2t[x], yy = t2s[y];
+        if (xx != 0 && xx != y || yy != 0 && yy != x)
+            return false;
+        s2t[x] = y;
+        t2s[y] = x;
+    }
+    return true;
+}
+
+int firstUniqChar(string s) {
+    int cnt[128]{};
+    for (const char c : s)
+        cnt[c]++;
+    for (int i = 0; i < s.size(); i++) {
+        if (cnt[s[i]] == 1)
+            return i;
+    }
+    return -1;
+}
+
+int findMinDifference(const vector<string> &timePoints) {
+    auto getMin = [](const std::string a) -> short {
+        short ah = (a[0] - '0') * 10 + a[1] - '0';
+        short am = (a[3] - '0') * 10 + a[4] - '0';
+        return ah * 60 + am;
+    };
+    std::vector<short> p;
+    for (const auto &t : timePoints) {
+        p.emplace_back(getMin(t));
+    }
+    std::sort(p.begin(), p.end());
+    p.emplace_back(p.front() + 24 * 60);
+    int ret = 24 * 60;
+    for (int i = 1; i < p.size(); i++) {
+        ret = std::min(ret, p[i] - p[i - 1]);
+    }
+    return ret;
+}
+
+bool makesquare(vector<int> &matchsticks) {
+    const int sm = std::accumulate(matchsticks.begin(), matchsticks.end(), 0);
+    if (sm % 4 != 0)
+        return false;
+    const int psm = sm / 4;
+    int bucket[4]{};
+    std::sort(matchsticks.rbegin(), matchsticks.rend());
+    if (matchsticks.front() > psm)
+        return false;
+    auto it = matchsticks.begin();
+    std::function<bool()> dfs = [&]() -> bool {
+        if (it == matchsticks.end())
+            return true;
+        for (int i = 0; i < 4; i++) {
+            if (bucket[i] + *it > psm)
+                continue;
+            if (i > 0 && bucket[0] == 0) {
+                return false;
+            }
+            if (i > 0 && bucket[i] == bucket[i - 1]) {
+                continue;
+            }
+            bucket[i] += *it++;
+            if (dfs())
+                return true;
+            bucket[i] -= *(--it);
+        }
+        return false;
+    };
+    return dfs();
+}
+
+bool rotateString(string s, string goal) {
+    if (s.size() != goal.size())
+        return false;
+    s += s;
+    return s.find(goal) != std::string::npos;
+}
+
+vector<vector<int>> pathWithObstacles(vector<vector<int>> &obstacleGrid) {
+    const int m = obstacleGrid.size(), n = obstacleGrid[0].size();
+    std::vector<std::vector<int>> ret;
+    auto isValid = [&](const int i, const int j) { return i >= 0 && i < m && j >= 0 && j < n; };
+    bool dp[101][101]{};
+    std::function<bool(int i, int j)> dfs = [&](const int i, const int j) -> bool {
+        if (!isValid(i, j) || obstacleGrid[i][j] == 1)
+            return false;
+        bool &memo = dp[i][j];
+        if (memo)
+            return false;
+        ret.push_back({i, j});
+        if (i == m - 1 && j == n - 1)
+            return true;
+        if (dfs(i + 1, j))
+            return true;
+        if (dfs(i, j + 1))
+            return true;
+        ret.pop_back();
+        memo = true;
+        return false;
+    };
+    if (!dfs(0, 0))
+        return {};
+    return ret;
+}
+
+int takeAttendance(vector<int> &records) {
+    int ret = 0;
+    int f = 0;
+    for (int i = 0; i < records.size(); i++) {
+        ret ^= records[i];
+        f ^= i;
+    }
+    f ^= records.size();
+    return f ^ ret;
+}
+
+ListNode *mergeInBetween(ListNode *list1, int a, int b, ListNode *list2) {
+    ListNode dummy(0), *ptr = &dummy;
+    dummy.next = list1;
+    for (int i = 0; i < a; i++) {
+        ptr = ptr->next;
+    }
+    ListNode *p1 = ptr;
+    for (int i = 0; i <= b - a + 1; i++) {
+        ptr = ptr->next;
+    }
+    ListNode *p2 = ptr;
+    ListNode *p3 = list2;
+    while (list2->next != nullptr)
+        list2 = list2->next;
+    p1->next = p3;
+    list2->next = p2;
+    return dummy.next;
+}
+
+int thirdMax(vector<int> &nums) {
+    if (nums.size() < 3) {
+        return std::max(nums.back(), nums.front());
+    }
+    std::priority_queue<int, std::vector<int>, std::greater<int>> pq;
+    for (const int i : nums) {
+        if (pq.size() > 3)
+            pq.pop();
+        pq.emplace(i);
+    }
+    return pq.top();
+}
+
+int shortestPathBinaryMatrix(vector<vector<int>> &grid) {
+    if (grid[0][0] == 1)
+        return -1;
+    const int n = grid.size();
+    bool visited[n][n];
+    std::memset(visited, 0, sizeof(visited));
+    constexpr static int dirs[8][2]{{1, 0},  {-1, 0}, {0, 1},  {0, -1},
+                                    {1, -1}, {1, 1},  {-1, 1}, {-1, -1}};
+    auto isValid = [&](const int i, const int j) { return i >= 0 && i < n && j >= 0 && j < n; };
+    std::queue<std::pair<int, int>> q;
+    q.emplace(0, 0);
+    int step = 0;
+    while (!q.empty()) {
+        const int qz = q.size();
+        for (int i = 0; i < qz; i++) {
+            const auto cur = q.front();
+            q.pop();
+            const int x = cur.first, y = cur.second;
+            if (cur.first == n - 1 && cur.second == n - 1)
+                return step + 1;
+            for (const auto &dir : dirs) {
+                const int ii = x + dir[0], jj = y + dir[1];
+                if (!isValid(ii, jj))
+                    continue;
+                if (visited[ii][jj])
+                    continue;
+                if (grid[ii][jj] == 1)
+                    continue;
+                visited[ii][jj] = true;
+                q.emplace(ii, jj);
+            }
+        }
+        step++;
+    }
+    return -1;
+}
+
+vector<string> commonChars(vector<string> &words) {
+    std::vector<int> a(128, 101);
+    std::vector<int> b(128);
+    for (const auto &str : words) {
+        std::memset(b.data(), 0, 128 * 4);
+        for (const char c : str) {
+            if (a[c]-- > 0)
+                b[c]++;
+        }
+        std::swap(a, b);
+    }
+    std::vector<std::string> ret;
+    for (char i = 'a'; i <= 'z'; i++) {
+        for (int j = 0; j < a[i]; j++) {
+            ret.emplace_back(std::string(1, i));
+        }
+    }
+    return ret;
+}
+
+int findKthPositive(vector<int> &arr, int k) {
+    int l = 0, r = arr.size();
+    while (l < r) {
+        const int mid = l + (r - l) / 2;
+        if (arr[mid] - mid - 1 < k) {
+            l = mid + 1;
+        } else {
+            r = mid;
+        }
+    }
+    return k + l;
+}
+
+bool flipEquiv(TreeNode *root1, TreeNode *root2) {
+    if (root1 == nullptr)
+        return root2 == nullptr;
+    if (root2 == nullptr)
+        return false;
+    if (root1->val != root2->val)
+        return false;
+    if (root1->left == nullptr) {
+        if (root2->left == nullptr) {
+            return flipEquiv(root1->right, root2->right);
+        } else {
+            return flipEquiv(root1->right, root2->left);
+        }
+    }
+    if (root1->right == nullptr) {
+        if (root2->left == nullptr) {
+            return flipEquiv(root1->left, root2->right);
+        } else {
+            return flipEquiv(root1->left, root2->left);
+        }
+    }
+    if (root2->left == nullptr || root2->right == nullptr)
+        return false;
+    if (root1->left->val == root2->left->val) {
+        return flipEquiv(root1->left, root2->left) && flipEquiv(root1->right, root2->right);
+    } else {
+        return flipEquiv(root1->left, root2->right) && flipEquiv(root1->right, root2->left);
+    }
+}
+
+int maxEvents(vector<vector<int>> &events) {
+    const int n = events.size();
+    std::sort(events.begin(), events.end(),
+              [](const std::vector<int> &a, const std::vector<int> &b) { return a[1] < b[1]; });
+    std::vector<int> p(events.back()[1] + 2);
+    std::iota(p.begin(), p.end(), 0);
+    std::function<int(const int)> find = [&](const int i) -> int {
+        if (i == p[i])
+            return i;
+        return p[i] = find(p[i]);
+    };
+    int ret = 0;
+    for (const auto &e : events) {
+        const int d = find(e[0]);
+        if (d <= e[1]) {
+            ret++;
+            p[d] = d + 1;
+        }
+    }
+    return ret;
+}
+
+bool possibleBipartition(int n, vector<vector<int>> &dislikes) {
+    class UF {
+        std::vector<int> p;
+
+      public:
+        UF(const int n) {
+            p.resize(n + 1);
+            std::iota(p.begin(), p.end(), 0);
+        };
+        int find(const int i) {
+            if (i == p[i])
+                return i;
+            return p[i] = find(p[i]);
+        }
+        void merge(const int i, const int j) {
+            const int pi = find(i);
+            const int pj = find(j);
+            if (pi != pj) {
+                p[pi] = pj;
+            }
+        }
+        bool isConnected(const int i, const int j) {
+            const int pi = find(i);
+            const int pj = find(j);
+            return pi == pj;
+        }
+    };
+    UF uf(n);
+    std::vector<std::vector<int>> graph(n + 1);
+    for (const auto &v : dislikes) {
+        graph[v[0]].emplace_back(v[1]);
+        graph[v[1]].emplace_back(v[0]);
+    }
+    for (int i = 0; i < graph.size(); i++) {
+        const auto &neis = graph[i];
+        for (const int n : neis) {
+            if (uf.isConnected(i, n))
+                return false;
+            uf.merge(neis.front(), n);
+        }
+    }
+    return true;
+}
+
+string largestTimeFromDigits(vector<int> &arr) {
+    std::sort(arr.rbegin(), arr.rend());
+    int h, m;
+    do {
+        h = 10 * arr[0] + arr[1];
+        m = 10 * arr[2] + arr[3];
+        if (h < 24 && m < 60)
+            break;
+    } while (prev_permutation(arr.begin(), arr.end()));
+    if (h < 24 && m < 60) {
+        char ans[6]{};
+        sprintf(ans, "%2d:%2d", h, m);
+        return std::string(ans);
+    } else {
+        return "";
+    }
+}
+
+int minCostClimbingStairs(vector<int> &cost) {
+    int a = cost[0], b = cost[1];
+    for (int i = 2; i <= cost.size(); i++) {
+        const int c = std::min(a + cost[i - 2], b + cost[i - 1]);
+        a = b;
+        b = c;
+    }
+    return b;
+}
+
+int maxScore(vector<int> &cardPoints, int k) {
+    k = cardPoints.size() - k;
+    const int sm = std::accumulate(cardPoints.begin(), cardPoints.end(), 0);
+    if (k == 0)
+        return sm;
+    int l = 0, r = 0;
+    int minSt = sm;
+    int psm = 0;
+    while (r < cardPoints.size()) {
+        psm += cardPoints[r++];
+        k--;
+        if (k > 0)
+            continue;
+        minSt = std::min(minSt, psm);
+        psm -= cardPoints[l++];
+        k = 1;
+    }
+    return sm - minSt;
+}
+
+class Solution {
+    std::unordered_map<int, std::vector<int>> um;
+
+  public:
+    Solution(vector<int> &nums) {
+        for (int i = 0; i < nums.size(); i++) {
+            um[nums[i]].emplace_back(i);
+        }
+    }
+
+    int pick(int target) {
+        const auto &pr = um[target];
+        return pr[std::rand() % pr.size()];
+    }
+};
+
+int maxAncestorDiff(TreeNode *root) {
+    int ret = 0;
+    std::function<void(TreeNode *, int, int)> dfs = [&](TreeNode *root, int minVal, int maxVal) {
+        if (root == nullptr)
+            return;
+        if (root->val > maxVal) {
+            ret = std::max(ret, root->val - minVal);
+            maxVal = root->val;
+        } else if (root->val < minVal) {
+            ret = std::max(ret, maxVal - root->val);
+            minVal = root->val;
+        }
+        dfs(root->left, minVal, maxVal);
+        dfs(root->right, minVal, maxVal);
+    };
+    dfs(root, root->val, root->val);
+    return ret;
+}
+
+bool canWinNim(int n) { return n % 4 != 0; }
+
+int lengthOfLastWord(string s) {
+    int idx = s.size() - 1;
+    while (std::isspace(s[idx]))
+        idx--;
+    int start = idx;
+    while (idx >= 0 && !std::isspace(s[idx]))
+        idx--;
+    return start - idx;
+}
+
+vector<vector<int>> verticalTraversal(TreeNode *root) {
+    std::vector<std::array<int, 3>> nodes;
+    std::function<void(TreeNode *, const int, const int)> dfs = [&](TreeNode *root, const int idx,
+                                                                    const int level) {
+        if (root == nullptr)
+            return;
+        nodes.push_back({root->val, idx, level});
+        dfs(root->left, idx - 1, level + 1);
+        dfs(root->right, idx + 1, level + 1);
+    };
+    dfs(root, 0, 0);
+
+    std::sort(nodes.begin(), nodes.end(),
+              [](const std::array<int, 3> &a, const std::array<int, 3> &b) -> bool {
+                  if (a[1] == b[1]) {
+                      if (a[2] == b[2]) {
+                          return a[0] < b[0];
+                      }
+                      return a[2] < b[2];
+                  }
+                  return a[1] < b[1];
+              });
+
+    std::vector<std::vector<int>> ret;
+    int preIdx = INT32_MIN;
+    for (const auto arr : nodes) {
+        if (arr[1] > preIdx) {
+            ret.push_back({arr[0]});
+        } else {
+            ret.back().emplace_back(arr[0]);
+        }
+        preIdx = arr[1];
+    }
+    return ret;
+}
+
+int consecutiveNumbersSum(int n) {
+    int ret = 0;
+    n *= 2;
+    int maxI = std::pow(n, 0.5);
+    for (int i = 1; i <= maxI; i++) {
+        if (n % i != 0)
+            continue;
+        ret += (n / i + 1 - i) % 2 == 0;
+    }
+    return ret;
+}
+
+int calculate(string s) {
+    s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char ch) { return std::isspace(ch); }),
+            s.end());
+    int presign = '+';
+    std::vector<int> stk;
+    int idx = 0;
+    while (idx < s.size()) {
+        int start = idx++;
+        while (idx < s.size() && std::isdigit(s[idx]))
+            idx++;
+        const int num = std::stoi(s.substr(start, idx - start));
+        switch (presign) {
+        case '+': {
+            stk.emplace_back(num);
+            break;
+        }
+        case '-': {
+            stk.emplace_back(-num);
+            break;
+        }
+        case '*': {
+            stk.back() *= num;
+            break;
+        }
+        case '/': {
+            stk.back() /= num;
+            break;
+        }
+        }
+        if (idx < s.size())
+            presign = s[idx++];
+    }
+    return std::accumulate(stk.begin(), stk.end(), 0);
+}
+
+string longestWord(vector<string> &words) {
+    std::sort(words.begin(), words.end(), [](const std::string &a, const std::string &b) -> bool {
+        if (a.size() == b.size())
+            return a < b;
+        return a.size() > b.size();
+    });
+    struct Trie {
+        struct Node {
+            Node *children[128]{};
+            bool isWord{};
+        };
+        Node *head = new Node;
+        void insWord(const std::string &w) {
+            Node *cursor = head;
+            for (const char c : w) {
+                if (cursor->children[c] == nullptr) {
+                    cursor->children[c] = new Node;
+                }
+                cursor = cursor->children[c];
+            }
+            cursor->isWord = true;
+        }
+        void insWords(const std::vector<std::string> &ws) {
+            for (const std::string &w : ws) {
+                insWord(w);
+            }
+        }
+    };
+    Trie te;
+    te.insWords(words);
+    std::vector<char> visited(100);
+    std::function<bool(const std::string &, const int)> dfs = [&](const std::string &s,
+                                                                  const int start) -> bool {
+        if (start == s.size())
+            return true;
+        if (visited[start])
+            return false;
+        Trie::Node *cursor = te.head;
+        for (int i = start; i < s.size(); i++) {
+            if (cursor == nullptr)
+                return false;
+            cursor = cursor->children[s[i]];
+            if (start == 0 && i + 1 == s.size())
+                return false;
+            if (cursor != nullptr && cursor->isWord) {
+                if (dfs(s, i + 1))
+                    return true;
+            }
+        }
+        visited[start] = true;
+        return false;
+    };
+    for (const std::string &w : words) {
+        visited.assign(visited.size(), 0);
+        if (dfs(w, 0))
+            return w;
+    }
+    return "";
+}
+
+double nthPersonGetsNthSeat(int n) {
+    double a = 1;
+    double b = 1;
+    for (int i = 2; i <= n; i++) {
+        b = 1.0 / i * a;
+        a += b;
+    }
+    return b;
+}
+
+int hIndex(vector<int> &citations) {
+    std::sort(citations.rbegin(), citations.rend());
+    int l = 1, r = citations.size() + 1;
+    while (l < r) {
+        const int mid = l + (r - l) / 2;
+        if (citations[mid - 1] >= mid) {
+            l = mid + 1;
+        } else {
+            r = mid;
+        }
+    }
+    return l - 1;
+}
+
+string customSortString(string order, string s) {
+    int cnt[128]{};
+    for (const char c : s)
+        cnt[c]++;
+    std::string ret;
+    for (const char c : order) {
+        if (cnt[c] > 0) {
+            ret.append(cnt[c], c);
+            cnt[c] = 0;
+        }
+    }
+    for (int c = 'a'; c <= 'z'; c++) {
+        if (cnt[c] > 0) {
+            ret.append(cnt[c], c);
+            cnt[c] = 0;
+        }
+    }
+    return ret;
+}
+
+class Node {
+  public:
+    int val;
+    Node *left;
+    Node *right;
+    Node *next;
+
+    Node() : val(0), left(NULL), right(NULL), next(NULL) {}
+
+    Node(int _val) : val(_val), left(NULL), right(NULL), next(NULL) {}
+
+    Node(int _val, Node *_left, Node *_right, Node *_next)
+        : val(_val), left(_left), right(_right), next(_next) {}
+};
+
+Node *connect(Node *root) {
+    if (root == nullptr)
+        return nullptr;
+    Node *cur = root;
+    while (cur != nullptr) {
+        Node dummy, *ptr = &dummy;
+        while (cur != nullptr) {
+            if (cur->left) {
+                ptr->next = cur->left;
+                ptr = ptr->next;
+            }
+            if (cur->right) {
+                ptr->next = cur->right;
+                ptr = ptr->next;
+            }
+            cur = cur->next;
+        }
+        cur = dummy.next;
+    }
+    return root;
+}
+
+int findShortestSubArray(vector<int> &nums) {
+    int mp[50000]{};
+    int degree = 0;
+    for (const int i : nums) {
+        if (++mp[i] > degree)
+            degree = mp[i];
+    }
+    std::memset(mp, 0, sizeof(mp));
+    int l = 0, r = 0;
+    int ret = nums.size();
+    while (r < nums.size()) {
+        if (++mp[nums[r++]] < degree)
+            continue;
+        while (mp[nums[l++]]-- < degree)
+            ;
+        ret = std::min(ret, r + 1 - l);
+    }
+    return ret;
+}
+
+bool splitArraySameAverage(vector<int> &nums) {
+    int n = nums.size();
+    if (n <= 1)
+        return false;
+
+    int sum = accumulate(nums.begin(), nums.end(), 0);
+
+    // 1. 数学平移：让所有满足条件的子集和变成 0
+    for (int &x : nums) {
+        x = x * n - sum;
+    }
+
+    int half = n / 2;
+    unordered_set<int> leftSums;
+
+    // 2. 左半段 DFS
+    // 参数: 当前索引 idx, 当前和 currentSum, 选中的元素个数 count
+    auto dfsLeft = [&](auto &&self, int idx, int currentSum, int count) -> bool {
+        if (idx == half) {
+            // 如果左半段自己就凑出了 0（且不是空集），直接成功
+            if (count > 0 && currentSum == 0)
+                return true;
+            // 将左半段的子集和存入哈希表。
+            // 注意：排除空集，也排除全选的情况（防止左右拼起来变成整个原数组）
+            if (count > 0 && count < half) {
+                leftSums.insert(currentSum);
+            }
+            return false;
+        }
+        // 不选当前元素
+        if (self(self, idx + 1, currentSum, count))
+            return true;
+        // 选当前元素
+        if (self(self, idx + 1, currentSum + nums[idx], count + 1))
+            return true;
+        return false;
+    };
+
+    if (dfsLeft(dfsLeft, 0, 0, 0))
+        return true;
+
+    // 3. 右半段 DFS
+    auto dfsRight = [&](auto &&self, int idx, int currentSum, int count) -> bool {
+        if (idx == n) {
+            // 如果右半段自己凑出了 0（且不是空集），直接成功
+            if (count > 0 && currentSum == 0)
+                return true;
+
+            // 如果左半段和右半段拼起来凑成了 0
+            // count < (n - half) 是为了确保右半段没有全选，从而保证拼出来的不是整个原数组
+            if (count > 0 && count < (n - half) && leftSums.count(-currentSum)) {
+                return true;
+            }
+            return false;
+        }
+        // 不选当前元素
+        if (self(self, idx + 1, currentSum, count))
+            return true;
+        // 选当前元素
+        if (self(self, idx + 1, currentSum + nums[idx], count + 1))
+            return true;
+        return false;
+    };
+
+    return dfsRight(dfsRight, half, 0, 0);
+}
+
+TreeNode *convertBST(TreeNode *root) {
+    int preNodeSm = 0;
+    std::function<void(TreeNode *)> dfs = [&](TreeNode *root) {
+        if (root == nullptr)
+            return;
+        dfs(root->right);
+        root->val += preNodeSm;
+        preNodeSm = root->val;
+        dfs(root->left);
+    };
+    dfs(root);
+    return root;
+}
+
+vector<int> numsSameConsecDiff(int n, int k) {
+    std::string tmp;
+    std::vector<int> ret;
+    std::function<void()> dfs = [&]() {
+        if (tmp.size() == n) {
+            ret.emplace_back(std::stoi(tmp));
+            return;
+        }
+        for (int i = '0'; i <= '9'; i++) {
+            if (i == tmp.back() + k || i == tmp.back() - k) {
+                tmp.push_back(i);
+                dfs();
+                tmp.pop_back();
+            }
+        }
+    };
+    for (int i = '1'; i <= '9'; i++) {
+        tmp.push_back(i);
+        dfs();
+        tmp.pop_back();
+    }
+    return ret;
+}
+
+int videoStitching(vector<vector<int>> &clips, int time) {
+    std::sort(clips.begin(), clips.end(),
+              [](const std::vector<int> &a, const std::vector<int> &b) -> bool {
+                  if (a[0] == b[0])
+                      return a[1] - a[0] > b[1] - b[0];
+                  return a[0] < b[0];
+              });
+    if (clips.front().front() != 0)
+        return -1;
+    int ret = 0;
+    int a = -1, b = 0;
+    for (const auto &v : clips) {
+        if (v[0] > b)
+            return -1;
+        if (v[0] > a) {
+            ret++;
+            a = b;
+        }
+        b = std::max(b, v[1]);
+        if (b >= time)
+            return ret;
+    }
+    return -1;
+}
+
+int waysToChange(int n) {
+    int ret = 0;
+    for (int i = 0; i * 25 <= n; i++) {
+        const int rest = n - 25 * i;
+        const int a = rest / 10;
+        const int b = rest % 10 / 5;
+        ret = ret + (a + b) * (a + b + 1);
+        ret %= 1000000007;
+    }
+    return ret;
+}
+
+int maxRepOpt1(string text) {
+    typedef std::pair<char, int> PCI;
+    std::vector<PCI> stk{{0, 0}};
+    int ret = 0;
+    int cnt[128]{};
+    for (const char c : text) {
+        cnt[c]++;
+        if (c == stk.back().first) {
+            stk.back().second++;
+        } else {
+            stk.emplace_back(c, 1);
+        }
+        ret = std::max(ret, stk.back().second);
+    }
+    for (int i = 1; i < stk.size() - 1; i++) {
+        const int curI_1 = std::min(cnt[stk[i - 1].first], stk[i - 1].second + 1);
+        ret = std::max(ret, curI_1);
+        const int curIp1 = std::min(cnt[stk[i + 1].first], stk[i + 1].second + 1);
+        ret = std::max(ret, curIp1);
+        if (stk[i].second > 1) {
+            continue;
+        }
+        if (stk[i - 1].first == stk[i + 1].first) {
+            const int cur =
+                std::min(cnt[stk[i - 1].first], stk[i - 1].second + 1 + stk[i + 1].second);
+            ret = std::max(ret, cur);
+        }
+    }
+    return ret;
+}
+
+int jobScheduling(vector<int> &startTime, vector<int> &endTime, vector<int> &profit) {
+    const int n = startTime.size();
+    typedef std::array<int, 3> arr_t;
+    std::vector<std::array<int, 3>> jobs;
+    for (int i = 0; i < startTime.size(); i++) {
+        jobs.push_back({startTime[i], endTime[i], profit[i]});
+    }
+    std::sort(jobs.begin(), jobs.end(),
+              [](const arr_t &a, const arr_t &b) -> bool { return a[1] < b[1]; });
+    std::vector<int> cache(n);
+    std::function<int(const int, const int)> dfs = [&](const int start,
+                                                       const int preEndTime) -> int {
+        if (start == n)
+            return 0;
+        if (jobs[start][0] < preEndTime)
+            return 0;
+        int &memo = cache[start];
+        if (memo > 0)
+            return memo;
+        int ret = jobs[start][2];
+        for (int i = start; i < n; i++) {
+            if (start == 0 && jobs[i][0] > jobs[0][1])
+                break;
+            for (int j = i + 1; j < n; j++) {
+                ret = std::max(ret, jobs[i][2] + dfs(j, jobs[i][1]));
+            }
+        }
+        return memo = ret;
+    };
+    int ret = dfs(0, -1);
+    fp("cache: {}\n", cache);
+    return ret;
+}
+
+} // namespace D
 
 int main() {
-    const auto ret = C::longestPalindrome("babad");
+    /*
+    startTime =
+[43,13,36,31,40,5,47,13,28,16,2,11]
+endTime =
+[44,22,41,41,47,13,48,35,48,26,21,39]
+profit =
+[8,20,3,19,16,8,11,13,2,15,1,1]
+    */
+    vector<int> startTime{43, 13, 36, 31, 40, 5, 47, 13, 28, 16, 2, 11};
+    vector<int> endTime{44, 22, 41, 41, 47, 13, 48, 35, 48, 26, 21, 39};
+    vector<int> profit{8, 20, 3, 19, 16, 8, 11, 13, 2, 15, 1, 1};
+    const auto ret = D::jobScheduling(startTime, endTime, profit);
     fp("ret: {}\n", ret);
     return 0;
 }

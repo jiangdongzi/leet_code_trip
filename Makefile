@@ -24,7 +24,7 @@ TM_TEST_SRC := test_template_magic.cpp
 TM_TEST_OBJ = $(patsubst %.cpp,$(TEST_BUILD_DIR)/%.o,$(TM_TEST_SRC))
 
 # Debug-friendly build: minimal optimization and full debug info.
-CXXSTD ?= -std=c++11
+CXXSTD ?= -std=c++20
 # Default to quiet builds; override e.g. `make CXXWARN='-Wall -Wextra -Wpedantic'`.
 CXXWARN ?= -w
 CXXFLAGS ?= $(CXXSTD) -Og -g $(CXXWARN)

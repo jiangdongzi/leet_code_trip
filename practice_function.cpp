@@ -28,21 +28,14 @@ struct dependent_false : std::false_type {};
 // =========================
 
 // 实现 move：把任意 T&& 转成“去引用后的右值引用”
-template <class T>
-constexpr typename std::remove_reference<T>::type&& move(T&& /*x*/) noexcept {
-    static_assert(dependent_false<T>::value, "TODO: implement stl_immitate_practice::move");
+template <typename T>
+constexpr typename std::remove_reference<T>::type&& move(T&& x) noexcept {
+    return static_cast<typename std::remove_reference<T>::type&&>(x);
 }
 
-// 实现 forward（左值版本）
-template <class T>
-constexpr T&& forward(typename std::remove_reference<T>::type& /*x*/) noexcept {
-    static_assert(dependent_false<T>::value, "TODO: implement stl_immitate_practice::forward(lvalue)");
-}
-
-// 实现 forward（右值版本，注意需要 static_assert 防止把右值当左值转发）
-template <class T>
-constexpr T&& forward(typename std::remove_reference<T>::type&& /*x*/) noexcept {
-    static_assert(dependent_false<T>::value, "TODO: implement stl_immitate_practice::forward(rvalue)");
+template <typename T>
+constexpr T&& forward(typename std::remove_reference<T>::type& x) noexcept {
+    return static_cast<T&&>(x);
 }
 
 // 实现 swap：用 move 进行三次移动
