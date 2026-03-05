@@ -1104,6 +1104,7 @@ constexpr static int dirs[4][2]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 void solve(vector<vector<char>> &board) {
     const int m = board.size(), n = board[0].size();
     auto isValid = [&](const int i, const int j) { return i >= 0 && i < m && j >= 0 && j < n; };
+    constexpr static int dirs[4][2]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
     std::function<void(const int, const int)> dfs = [&](const int i, const int j) {
         if (!isValid(i, j))
             return;
@@ -5853,11 +5854,11 @@ int maxScore(vector<int> &cardPoints, int k) {
     return sm - minSt;
 }
 
-class Solution {
+class Solution2 {
     std::unordered_map<int, std::vector<int>> um;
 
   public:
-    Solution(vector<int> &nums) {
+    Solution2(vector<int> &nums) {
         for (int i = 0; i < nums.size(); i++) {
             um[nums[i]].emplace_back(i);
         }
@@ -6326,46 +6327,776 @@ int jobScheduling(vector<int> &startTime, vector<int> &endTime, vector<int> &pro
     }
     std::sort(jobs.begin(), jobs.end(),
               [](const arr_t &a, const arr_t &b) -> bool { return a[1] < b[1]; });
-    std::vector<int> cache(n);
-    std::function<int(const int, const int)> dfs = [&](const int start,
-                                                       const int preEndTime) -> int {
-        if (start == n)
-            return 0;
-        if (jobs[start][0] < preEndTime)
-            return 0;
-        int &memo = cache[start];
-        if (memo > 0)
-            return memo;
-        int ret = jobs[start][2];
-        for (int i = start; i < n; i++) {
-            if (start == 0 && jobs[i][0] > jobs[0][1])
-                break;
-            for (int j = i + 1; j < n; j++) {
-                ret = std::max(ret, jobs[i][2] + dfs(j, jobs[i][1]));
+    std::vector<int> dp(profit.size());
+    dp[0] = jobs[0][2];
+    for (int i = 1; i < n; i++) {
+        const int maxEndTime = jobs[i][0];
+        int l = 0, r = i;
+        while (l < r) {
+            const int mid = l + (r - l) / 2;
+            if (jobs[mid][1] <= maxEndTime) {
+                l = mid + 1;
+            } else {
+                r = mid;
             }
         }
-        return memo = ret;
-    };
-    int ret = dfs(0, -1);
-    fp("cache: {}\n", cache);
+        if (l == 0) {
+            dp[i] = std::max(dp[i - 1], jobs[i][2]);
+        } else {
+            dp[i] = std::max(dp[i - 1], jobs[i][2] + dp[l - 1]);
+        }
+    }
+    return dp[n - 1];
+}
+
+int maxIncreaseKeepingSkyline(vector<vector<int>> &grid) {
+    const int m = grid.size(), n = grid[0].size();
+    std::vector<int> rowMax(m), colMax(n);
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            rowMax[i] = std::max(rowMax[i], grid[i][j]);
+            colMax[j] = std::max(colMax[j], grid[i][j]);
+        }
+    }
+    int ret = 0;
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            const int skyLineH = std::min(rowMax[i], colMax[j]);
+            ret += skyLineH - grid[i][j];
+        }
+    }
     return ret;
+}
+
+int longestUnivaluePath(TreeNode *root) {
+    if (root == nullptr)
+        return 0;
+    int ret = 0;
+    std::function<std::pair<int, int>(TreeNode *)> dfs =
+        [&](TreeNode *root) -> std::pair<int, int> {
+        if (root == nullptr)
+            return {0, 0};
+        auto l = dfs(root->left);
+        auto r = dfs(root->right);
+        if (l.first == root->val && r.first == root->val) {
+            ret = std::max(ret, l.second + r.second + 1);
+            return {root->val, std::max(l.second, r.second) + 1};
+        } else if (l.first == root->val) {
+            ret = std::max(ret, l.second + 1);
+            return {root->val, l.second + 1};
+        } else if (r.first == root->val) {
+            ret = std::max(ret, r.second + 1);
+            return {root->val, r.second + 1};
+        } else {
+            ret = std::max(ret, 1);
+            return {root->val, 1};
+        }
+    };
+    dfs(root);
+    return ret;
+}
+
+int uniquePathsIII(vector<vector<int>> &grid) {
+    const int m = grid.size(), n = grid[0].size();
+    constexpr static int dirs[4][2]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    auto isValid = [&](const int i, const int j) { return i >= 0 && i < m && j >= 0 && j < n; };
+    int si, sj, ei, ej;
+    int zeroCnt = 0;
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            if (grid[i][j] == 1) {
+                si = i;
+                sj = j;
+            } else if (grid[i][j] == 2) {
+                ei = i;
+                ej = j;
+            } else if (grid[i][j] == 0) {
+                zeroCnt++;
+            }
+        }
+    }
+    std::vector<char> visited(m * n);
+    std::function<int(const int, const int, const int)> dfs = [&](const int i, const int j,
+                                                                  const int zCnt) -> int {
+        if (!isValid(i, j))
+            return 0;
+        if (grid[i][j] == -1)
+            return 0;
+        if (i == ei && j == ej) {
+            return zCnt == zeroCnt + 1;
+        }
+        if (visited[i * n + j])
+            return 0;
+        visited[i * n + j] = true;
+        int ret = 0;
+        for (const auto &d : dirs) {
+            ret += dfs(i + d[0], j + d[1], zCnt + 1);
+        }
+        visited[i * n + j] = false;
+        return ret;
+    };
+    return dfs(si, sj, 0);
+}
+
+vector<int> subSort(vector<int> &array) { return {}; }
+
+int minCameraCover(TreeNode *root) {
+    typedef std::pair<int, int> pii;
+
+    std::function<pii(TreeNode *)> dfs = [&](TreeNode *root) -> pii {
+        if (root == nullptr)
+            return {0, 0};
+        auto l = dfs(root->left);
+        auto r = dfs(root->right);
+        const int lMin = std::min(l.first, l.second);
+        const int rMin = std::min(r.first, r.second);
+        const int installOnRoot = lMin + rMin + 1;
+        const int notInstallOnRoot = l.first + r.first;
+    };
+}
+
+vector<int> sortArrayByParityII(vector<int> &nums) {
+    int p = -1;
+    for (int i = 0; i < nums.size(); i++) {
+        if ((nums[i] & 1) == 0) {
+            std::swap(nums[++p], nums[i]);
+        }
+    }
+    int tmp = p + 1;
+    p = 1;
+    for (int i = tmp; i < nums.size(); i++) {
+        std::swap(nums[p], nums[i]);
+        p += 2;
+    }
+    return nums;
+}
+
+int networkDelayTime(vector<vector<int>> &times, int n, int k) {
+    std::vector<std::vector<std::pair<int, int>>> graph(n + 1);
+    for (const auto &v : times) {
+        graph[v[0]].emplace_back(v[1], v[2]);
+    }
+    struct compare {
+        bool operator()(pair<int, int> p, pair<int, int> q) { return p.second > q.second; }
+    };
+    std::priority_queue<std::pair<int, int>, std::vector<std::pair<int, int>>, compare> q;
+    q.emplace(k, 0);
+    std::vector<int> minReachTime(n + 1, INT32_MAX);
+    while (!q.empty()) {
+        const auto cur = q.top();
+        q.pop();
+        if (cur.second > minReachTime[cur.first])
+            continue;
+        for (const auto &neighbor : graph[cur.first]) {
+            if (neighbor.second + cur.second >= minReachTime[neighbor.first])
+                continue;
+            minReachTime[neighbor.first] = cur.second + neighbor.second;
+            q.emplace(neighbor.first, cur.second + neighbor.second);
+        }
+    }
+    int ret = 0;
+    for (int i = 1; i <= n; i++) {
+        if (i == k)
+            continue;
+        if (minReachTime[i] == INT32_MAX)
+            return -1;
+        ret = std::max(ret, minReachTime[i]);
+    }
+    return ret;
+}
+
+TreeNode *searchBST(TreeNode *root, int val) {
+    while (root != nullptr) {
+        if (root->val == val)
+            return root;
+        if (root->val > val)
+            return searchBST(root->left, val);
+        return searchBST(root->right, val);
+    }
+    return nullptr;
+}
+
+ListNode *removeElements(ListNode *head, int val) {
+    ListNode dummy(0), *ptr = &dummy;
+    while (head != nullptr) {
+        if (head->val != val) {
+            ptr->next = head;
+            ptr = head;
+        }
+        head = head->next;
+    }
+    ptr->next = nullptr;
+    return dummy.next;
+}
+
+int carFleet(int target, vector<int> &position, vector<int> &speed) {
+    std::vector<std::pair<int, int>> car;
+    for (int i = 0; i < position.size(); i++) {
+        car.emplace_back(position[i], speed[i]);
+    }
+    std::sort(car.begin(), car.end());
+    std::pair<int, int> preH{0, 1};
+    int ret = 0;
+    for (int i = car.size() - 1; i >= 0; i--) {
+        const int d = target - car[i].first;
+        const int sp = car[i].second;
+        const int preD = preH.first;
+        const int preS = preH.second;
+        if (d * preS > sp * preD) {
+            ret++;
+            preH = {d, sp};
+        }
+    }
+    return ret;
+}
+
+string originalDigits(string s) {
+    std::string mp[10]{"zero", "one", "two",   "three", "four",
+                       "five", "six", "seven", "eight", "nine"};
+    int cnt[128]{};
+    for (const char c : s)
+        cnt[c]++;
+    int digCnt[10]{};
+    digCnt[0] = cnt['z'];
+    digCnt[2] = cnt['w'];
+    digCnt[4] = cnt['u'];
+    digCnt[6] = cnt['x'];
+    digCnt[8] = cnt['g'];
+    //-------------
+    digCnt[3] = cnt['h'] - digCnt[8];
+    digCnt[5] = cnt['f'] - digCnt[4];
+    digCnt[7] = cnt['s'] - digCnt[6];
+    //-------------
+    digCnt[1] = cnt['o'] - digCnt[0] - digCnt[2] - digCnt[4];
+    digCnt[9] = cnt['i'] - digCnt[5] - digCnt[6] - digCnt[8];
+    std::string ret;
+    for (int i = 0; i < 10; i++) {
+        if (digCnt[i] > 0) {
+            ret.append(digCnt[i], '0' + i);
+        }
+    }
+    return ret;
+}
+int maxProductPath(vector<vector<int>> &grid) {
+    const int m = grid.size(), n = grid[0].size();
+    std::vector<std::vector<std::pair<long, long>>> dp(m, std::vector<std::pair<long, long>>(n));
+    dp[0][0] = {grid[0][0], grid[0][0]};
+    for (int i = 1; i < m; i++) {
+        const long cur = dp[i - 1][0].first * grid[i][0];
+        dp[i][0] = {cur, cur};
+    }
+    for (int j = 1; j < n; j++) {
+        const long cur = dp[0][j - 1].first * grid[0][j];
+        dp[0][j] = {cur, cur};
+    }
+    for (int i = 1; i < m; i++) {
+        for (int j = 1; j < n; j++) {
+            const long cur = grid[i][j];
+            const long a = dp[i - 1][j].first * cur;
+            const long b = dp[i][j - 1].first * cur;
+            const long c = dp[i - 1][j].second * cur;
+            const long d = dp[i][j - 1].second * cur;
+            const long maxVal = std::max({a, b, c, d}) % 1000000007;
+            const long minVal = std::min({a, b, c, d}) % 1000000007;
+            dp[i][j] = {maxVal, minVal};
+        }
+    }
+    if (dp[m - 1][n - 1].first < 0)
+        return -1;
+    return dp[m - 1][n - 1].first;
+}
+
+bool canVisitAllRooms(vector<vector<int>> &rooms) { return true; }
+
+int maxDistance(vector<vector<int>> &grid) {
+    const int m = grid.size(), n = grid[0].size();
+    bool visited[m][n];
+    std::memset(visited, 0, sizeof(visited));
+    std::queue<std::pair<int, int>> q;
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            if (grid[i][j] == 0)
+                continue;
+            visited[i][j] = true;
+            q.emplace(i, j);
+        }
+    }
+    if (q.empty() || q.size() == m * n)
+        return -1;
+    auto isValid = [&](const int i, const int j) { return i >= 0 && i < m && j >= 0 && j < n; };
+    constexpr static int dirs[4][2]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    int step = 0;
+    while (!q.empty()) {
+        const int qz = q.size();
+        for (int i = 0; i < qz; i++) {
+            const auto cur = q.front();
+            q.pop();
+            for (const auto &dr : dirs) {
+                const int ii = cur.first + dr[0], jj = cur.second + dr[1];
+                if (!isValid(ii, jj))
+                    continue;
+                if (visited[ii][jj])
+                    continue;
+                visited[ii][jj] = true;
+                q.emplace(ii, jj);
+            }
+        }
+        step++;
+    }
+    return step - 1;
+}
+
+int kInversePairs(int n, int k) {
+    const int MOD = 1000000007;
+    std::vector<int> a(k + 1), b(k + 1);
+    struct NumArr {
+        std::vector<int> psm;
+        NumArr(const std::vector<int> &arr) {
+            psm.resize(arr.size() + 1);
+            std::partial_sum(arr.begin(), arr.end(), psm.begin() + 1);
+        }
+        int getRange(const int l, const int r) { // [l, r]
+            return psm[r + 1] - psm[l];
+        }
+    };
+    a[0] = 1;
+    for (int i = 2; i <= n; i++) {
+        NumArr na(a);
+        for (int j = 0; j <= k; j++) {
+            b[j] = na.getRange(std::max(0, j - i + 1), j);
+        }
+        b.swap(a);
+    }
+    return a[k];
+}
+
+vector<int> nextLargerNodes(ListNode *head) {
+    std::vector<std::pair<int, int>> stk;
+    std::vector<int> ret(10001);
+    int idx = 0;
+    while (head != nullptr) {
+        const int curVal = head->val;
+        while (!stk.empty() && stk.back().second < curVal) {
+            ret[stk.back().first] = curVal;
+            stk.pop_back();
+        }
+        stk.emplace_back(idx, curVal);
+        idx++;
+        head = head->next;
+    }
+    ret.resize(idx);
+    return ret;
+}
+
+int scoreOfParentheses(string s) {
+    std::vector<std::pair<char, int>> stk;
+    for (const char c : s) {
+        if (c == '(') {
+            stk.emplace_back('(', -1);
+        } else {
+            int num = 0;
+            while (stk.back().first != '(') {
+                num += stk.back().second;
+                stk.pop_back();
+            }
+            stk.pop_back(); // (
+            if (num == 0) {
+                stk.emplace_back(0, 1);
+            } else {
+                stk.emplace_back(0, 2 * num);
+            }
+        }
+    }
+    int ret = 0;
+    for (const auto &ele : stk) {
+        assert(ele.first == 0);
+        ret += ele.second;
+    }
+    return ret;
+}
+
+vector<int> nextGreaterElement(vector<int> &nums1, vector<int> &nums2) {
+    std::vector<int> idxStk;
+    std::vector<int> nextGVal(nums2.size(), -1);
+    for (int i = 0; i < nums2.size(); i++) {
+        while (!idxStk.empty() && nums2[i] > nums2[idxStk.back()]) {
+            nextGVal[idxStk.back()] = nums2[i];
+            idxStk.pop_back();
+        }
+        idxStk.emplace_back(i);
+    }
+    std::unordered_map<int, int> valIdx;
+    for (int i = 0; i < nums2.size(); i++) {
+        valIdx[nums2[i]] = i;
+    }
+    std::vector<int> ret(nums1.size(), -1);
+    for (int i = 0; i < nums1.size(); i++) {
+        const int n2Idx = valIdx[nums1[i]];
+        ret[i] = nextGVal[n2Idx];
+    }
+    return ret;
+}
+
+int countSquares(vector<vector<int>> &matrix) {
+    const int m = matrix.size(), n = matrix[0].size();
+    int dp[m + 1][n + 1];
+    std::memset(dp, 0, sizeof(dp));
+    int ret = 0;
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            if (matrix[i][j] == 0)
+                continue;
+            dp[i + 1][j + 1] = std::min({dp[i + 1][j], dp[i][j], dp[i][j + 1]}) + 1;
+            ret += dp[i + 1][j + 1];
+        }
+    }
+    return ret;
+}
+
+int maxProduct(vector<string> &words) {
+    const int n = words.size();
+    std::vector<int> bits(n);
+    for (int i = 0; i < n; i++) {
+        const auto &w = words[i];
+        int &curBit = bits[n];
+        for (const char c : w) {
+            curBit |= 1 << (c - 'a');
+        }
+    }
+    size_t ret = 0;
+    for (int i = 0; i + 2 <= n; i++) {
+        for (int j = i + 1; j < n; j++) {
+            if (bits[i] & bits[j])
+                continue;
+            ret = std::max(ret, words[i].size() * words[j].size());
+        }
+    }
+    return ret;
+}
+bool parseBoolExpr(string expression) {
+    int idx = 0;
+    const int z = expression.size();
+    std::function<std::string()> recur = [&]() -> std::string {
+        std::string ret;
+        bool signFlag[128]{};
+        signFlag['!'] = true;
+        signFlag['|'] = true;
+        signFlag['&'] = true;
+        while (idx < z) {
+            const char c = expression[idx++];
+            if (c == ',')
+                continue;
+            if (signFlag[c]) {
+                assert(expression[idx++] == '(');
+                std::string tmp = recur();
+                if (c == '!') {
+                    assert(tmp.size() == 1);
+                    ret.push_back(!tmp.front());
+                } else if (c == '|') {
+                    bool x = false;
+                    for (const char i : tmp) {
+                        x |= i;
+                    }
+                    ret.push_back(x);
+                } else {
+                    bool x = true;
+                    for (const char i : tmp) {
+                        x &= i;
+                    }
+                    ret.push_back(x);
+                }
+            } else if (c == ')') {
+                return ret;
+            } else {
+                assert(c == 't' || c == 'f');
+                if (c == 't') {
+                    ret.push_back(1);
+                } else {
+                    ret.push_back(0);
+                }
+                while (expression[idx] == 't' || expression[idx] == 'f') {
+                    const char x = expression[idx++];
+                    idx++; //,
+                    if (x == 't') {
+                        ret.push_back(1);
+                    } else {
+                        ret.push_back(0);
+                    }
+                }
+            }
+        }
+        return ret;
+    };
+    auto ret = recur();
+    assert(ret.size() == 1);
+    return ret.front();
+}
+
+class Solution {
+  public:
+    bool parseBoolExpr(string expression) {
+        int idx = 0;
+        return parse(expression, idx);
+    }
+
+  private:
+    // 核心原则：每次 parse 只处理一个完整的表达式，返回其 bool 值
+    bool parse(const string &s, int &idx) {
+        char c = s[idx++];
+
+        // Base case: 最基础的布尔值
+        if (c == 't')
+            return true;
+        if (c == 'f')
+            return false;
+
+        // 如果走到这里，c 必然是操作符 '!', '&', '|'
+        idx++; // 跳过紧跟在操作符后面的左括号 '('
+
+        bool isAnd = (c == '&');
+        bool isNot = (c == '!');
+
+        // 初始化结果：如果是 '&' 初始为 true，否则初始为 false
+        bool res = isAnd;
+
+        if (isNot) {
+            // '!' 只有一个操作数，直接递归求反
+            res = !parse(s, idx);
+        } else {
+            // '&' 和 '|' 有多个操作数，用 while 循环处理括号内的所有内容
+            while (s[idx] != ')') {
+                if (s[idx] == ',') {
+                    idx++; // 遇到逗号直接跳过
+                    continue;
+                }
+                // 递归获取下一个完整单元的值
+                bool val = parse(s, idx);
+
+                // 实时计算结果，不占用额外空间
+                if (isAnd) {
+                    res &= val;
+                } else { // '|'
+                    res |= val;
+                }
+            }
+        }
+
+        idx++; // 跳过闭合的右括号 ')'
+        return res;
+    }
+};
+
+int shortestBridge(vector<vector<int>> &grid) {
+    const int m = grid.size(), n = grid[0].size();
+    auto isValid = [&](const int i, const int j) { return i >= 0 && i < m && j >= 0 && j < n; };
+    constexpr static int dirs[4][2]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    std::queue<std::pair<int, int>> q;
+    std::queue<std::pair<int, int>> endQ;
+    std::function<void(const int, const int)> dfs = [&](const int i, const int j) {
+        if (!isValid(i, j))
+            return;
+        if (grid[i][j] != 1)
+            return;
+        grid[i][j] = -1;
+        q.emplace(i, j);
+        for (const auto &d : dirs) {
+            if (!isValid(i + d[0], j + d[1]))
+                continue;
+            dfs(i + d[0], j + d[1]);
+        }
+    };
+    auto callDfs = [&]() {
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                if (grid[i][j] == 1) {
+                    dfs(i, j);
+                    return;
+                }
+            }
+        }
+    };
+    callDfs();
+    q.swap(endQ);
+    callDfs();
+    int step = 0;
+    while (!q.empty()) {
+        const int qz = q.size();
+        for (int i = 0; i < qz; i++) {
+            const auto cur = q.front();
+            q.pop();
+            for (const auto &d : dirs) {
+                const int ii = cur.first + d[0], jj = cur.second + d[1];
+                if (!isValid(ii, jj))
+                    continue;
+                if (grid[ii][jj] == 2)
+                    return step;
+                if (grid[ii][jj] != 0)
+                    continue;
+                grid[ii][jj] = 2;
+                q.emplace(ii, jj);
+            }
+        }
+        step++;
+    }
+    return -1;
+}
+vector<vector<int>> pacificAtlantic(vector<vector<int>> &grid) {
+    const int m = grid.size(), n = grid[0].size();
+    auto isValid = [&](const int i, const int j) { return i >= 0 && i < m && j >= 0 && j < n; };
+    constexpr static int dirs[4][2]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    std::vector<std::vector<char>> flowAbility(
+        m, std::vector<char>(
+               n)); // 0001xx 已处理完, 000010 流到太平洋, 000001流到大西洋  000011流到两大洋
+    for (int i = 0; i < n; i++) {
+        flowAbility[0][i] |= 2;
+        flowAbility[m - 1][i] |= 1;
+    }
+    for (int i = 0; i < m; i++) {
+        flowAbility[i][0] |= 2;
+        flowAbility[i][n - 1] |= 1;
+    }
+    std::function<char(const int, const int)> dfs = [&](const int i, const int j) -> char {
+        if (!isValid(i, j)) {
+            if (i == -1 || j == -1)
+                return 2;
+            else
+                return 1;
+        }
+        if (flowAbility[i][j] & 4) {
+            return flowAbility[i][j] & 3;
+        }
+        if (flowAbility[i][j] & 8)
+            return 0; //正在处理
+        flowAbility[i][j] |= 8;
+        char &curState = flowAbility[i][j];
+        for (const auto &d : dirs) {
+            const int ii = i + d[0], jj = j + d[1];
+            if (!isValid(ii, jj)) {
+                if (ii == -1 || jj == -1) {
+                    curState |= 2;
+                } else {
+                    curState |= 1;
+                }
+                continue;
+            }
+            if (grid[ii][jj] > grid[i][j])
+                continue;
+            curState |= dfs(ii, jj);
+        }
+        curState |= 4;
+        return curState & 3;
+    };
+    return {};
+}
+
+bool carPooling(vector<vector<int>> &trips, int capacity) {
+    std::unordered_map<int, int> um;
+    for (const auto &v : trips) {
+        const int pCnt = v[0];
+        const int fm = v[1];
+        const int to = v[2];
+        um[fm] += pCnt;
+        um[to] -= pCnt;
+    }
+    std::vector<int> points;
+    for (const auto &ele : um) {
+        points.emplace_back(ele.first);
+    }
+    std::sort(points.begin(), points.end());
+    int curCnt = 0;
+    for (const int i : points) {
+        curCnt += um[i];
+        if (curCnt > capacity)
+            return false;
+    }
+    return true;
+}
+
+int findContentChildren(vector<int> &g, vector<int> &s) {
+    std::sort(g.begin(), g.end());
+    std::sort(s.begin(), s.end());
+    int i = 0, j = 0;
+    int ret = 0;
+    while (i < s.size() && j < g.size()) {
+        if (s[i] >= g[j]) {
+            j++;
+            ret++;
+        }
+        i++;
+    }
+    return ret;
+}
+
+int slidingPuzzle(vector<vector<int>> &board) {
+    auto getBoardState = [&](vector<vector<int>> &board) -> long {
+        long state = 0;
+        char *tmp = (char *)&state;
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 3; j++) {
+                const int idx = i * 3 + j;
+                tmp[idx] = board[i][j];
+            }
+        }
+        return state;
+    };
+    auto pack6_memcpy = [](uint64_t x, char a[2][3]) { std::memcpy(a, &x, 6); };
+    auto unpack6_memcpy = [](const char a[2][3]) {
+        uint64_t x = 0;
+        std::memcpy(&x, a, 6);
+        return x;
+    };
+    long rawState = getBoardState(board);
+    std::vector<std::vector<int>> endBoard{{1, 2, 3}, {4, 5, 0}};
+    long endState = getBoardState(endBoard);
+    std::queue<long> q;
+    std::unordered_set<long> visited{rawState};
+    q.emplace(rawState);
+    int step = 0;
+    constexpr static int dirs[4][2]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    auto isValid = [&](const int i, const int j) { return i >= 0 && i < 2 && j >= 0 && j < 3; };
+    while (!q.empty()) {
+        const int qz = q.size();
+        for (int i = 0; i < qz; i++) {
+            const auto curState = q.front();
+            q.pop();
+            if (curState == endState) {
+                return step;
+            }
+            char a[2][3];
+            pack6_memcpy(curState, a);
+            int i0, j0;
+            for (int i = 0; i < 2; i++) {
+                for (int j = 0; j < 3; j++) {
+                    if (a[i][j] == 0) {
+                        i0 = i;
+                        j0 = j;
+                        break;
+                    }
+                }
+            }
+            for (const auto& d : dirs) {
+                const int ni = i0 + d[0], nj = j0 + d[1];
+                if (!isValid(ni, nj)) continue;
+                std::swap(a[i0][j0], a[ni][nj]);
+                const long newState = unpack6_memcpy(a);
+                if (visited.emplace(newState).second) {
+                    std::swap(a[i0][j0], a[ni][nj]);
+                    continue;
+                }
+                q.emplace(newState);
+                std::swap(a[i0][j0], a[ni][nj]);
+            }
+        }
+        step++;
+    }
+    return -1;
 }
 
 } // namespace D
 
 int main() {
-    /*
-    startTime =
-[43,13,36,31,40,5,47,13,28,16,2,11]
-endTime =
-[44,22,41,41,47,13,48,35,48,26,21,39]
-profit =
-[8,20,3,19,16,8,11,13,2,15,1,1]
-    */
-    vector<int> startTime{43, 13, 36, 31, 40, 5, 47, 13, 28, 16, 2, 11};
-    vector<int> endTime{44, 22, 41, 41, 47, 13, 48, 35, 48, 26, 21, 39};
-    vector<int> profit{8, 20, 3, 19, 16, 8, 11, 13, 2, 15, 1, 1};
-    const auto ret = D::jobScheduling(startTime, endTime, profit);
+    std::vector<std::vector<int>> board{{1, 2, 3}, {4, 0, 5}};
+    const auto ret = D::slidingPuzzle(board);
     fp("ret: {}\n", ret);
     return 0;
 }
