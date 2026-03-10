@@ -7029,34 +7029,62 @@ int findContentChildren(vector<int> &g, vector<int> &s) {
 
 int slidingPuzzle(vector<vector<int>> &board) {
     /*
-在一个 2 x 3 的板上（board）有 5 块砖瓦，用数字 1~5 来表示, 以及一块空缺用 0 来表示。一次 移动 定义为选择 0 与一个相邻的数字（上下左右）进行交换.
+在一个 2 x 3 的板上（board）有 5 块砖瓦，用数字 1~5 来表示, 以及一块空缺用 0 来表示。一次 移动
+定义为选择 0 与一个相邻的数字（上下左右）进行交换.
 
 最终当板 board 的结果是 [[1,2,3],[4,5,0]] 谜板被解开。
 
 给出一个谜板的初始状态 board ，返回最少可以通过多少次移动解开谜板，如果不能解开谜板，则返回 -1 。
     */
-    auto getBoardState = [&](vector<vector<int>> &board) -> long {
-        long state = 0;
-        char *tmp = (char *)&state;
+    auto getBoardState = [&](const vector<vector<int>> &b) -> uint64_t {
+        uint8_t a[2][3];
         for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 3; j++) {
-                const int idx = i * 3 + j;
-                tmp[idx] = board[i][j];
+                a[i][j] = static_cast<uint8_t>(b[i][j]);
             }
         }
-        return state;
-    };
-    auto pack6_memcpy = [](uint64_t x, char a[2][3]) { std::memcpy(a, &x, 6); };
-    auto unpack6_memcpy = [](const char a[2][3]) {
         uint64_t x = 0;
         std::memcpy(&x, a, 6);
         return x;
     };
-    long rawState = getBoardState(board);
+    auto pack6_memcpy = [](uint64_t x, uint8_t a[2][3]) { std::memcpy(a, &x, 6); };
+    auto unpack6_memcpy = [](const uint8_t a[2][3]) {
+        uint64_t x = 0;
+        std::memcpy(&x, a, 6);
+        return x;
+    };
+
+    // 2x3 board (width=3 odd): solvable iff inversion count is even.
+    auto isSolvable = [&](const vector<vector<int>> &b) -> bool {
+        int arr[6];
+        int k = 0;
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 3; j++) {
+                arr[k++] = b[i][j];
+            }
+        }
+        int inv = 0;
+        for (int i = 0; i < 6; i++) {
+            if (arr[i] == 0)
+                continue;
+            for (int j = i + 1; j < 6; j++) {
+                if (arr[j] == 0)
+                    continue;
+                if (arr[i] > arr[j])
+                    inv++;
+            }
+        }
+        return (inv % 2) == 0;
+    };
+
+    if (!isSolvable(board))
+        return -1;
+
+    uint64_t rawState = getBoardState(board);
     std::vector<std::vector<int>> endBoard{{1, 2, 3}, {4, 5, 0}};
-    long endState = getBoardState(endBoard);
-    std::queue<long> q;
-    std::unordered_set<long> visited{rawState};
+    uint64_t endState = getBoardState(endBoard);
+    std::queue<uint64_t> q;
+    std::unordered_set<uint64_t> visited{rawState};
     q.emplace(rawState);
     int step = 0;
     constexpr static int dirs[4][2]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
@@ -7069,29 +7097,29 @@ int slidingPuzzle(vector<vector<int>> &board) {
             if (curState == endState) {
                 return step;
             }
-            char a[2][3];
+            uint8_t a[2][3];
             pack6_memcpy(curState, a);
-            int i0, j0;
-            for (int i = 0; i < 2; i++) {
-                for (int j = 0; j < 3; j++) {
-                    if (a[i][j] == 0) {
-                        i0 = i;
-                        j0 = j;
+            int i0 = -1, j0 = -1;
+            for (int ii = 0; ii < 2 && i0 == -1; ii++) {
+                for (int jj = 0; jj < 3; jj++) {
+                    if (a[ii][jj] == 0) {
+                        i0 = ii;
+                        j0 = jj;
                         break;
                     }
                 }
             }
-            for (const auto& d : dirs) {
+            assert(i0 != -1 && j0 != -1);
+            for (const auto &d : dirs) {
                 const int ni = i0 + d[0], nj = j0 + d[1];
-                if (!isValid(ni, nj)) continue;
-                std::swap(a[i0][j0], a[ni][nj]);
-                const long newState = unpack6_memcpy(a);
-                if (visited.emplace(newState).second) {
-                    std::swap(a[i0][j0], a[ni][nj]);
+                if (!isValid(ni, nj))
                     continue;
-                }
-                q.emplace(newState);
                 std::swap(a[i0][j0], a[ni][nj]);
+                const uint64_t newState = unpack6_memcpy(a);
+                std::swap(a[i0][j0], a[ni][nj]);
+                if (!visited.emplace(newState).second)
+                    continue;
+                q.emplace(newState);
             }
         }
         step++;
@@ -7099,11 +7127,702 @@ int slidingPuzzle(vector<vector<int>> &board) {
     return -1;
 }
 
+vector<vector<int>> combinationSum3(int k, int n) {
+    std::vector<int> tmp;
+    std::vector<std::vector<int>> ret;
+    std::function<void(const int, const int)> dfs = [&](const int start, const int nn) {
+        if (nn <= 0 || tmp.size() == k) {
+            if (nn == 0 && tmp.size() == k) {
+                ret.emplace_back(tmp);
+            }
+            return;
+        }
+        if (start == 10) {
+            return;
+        }
+        for (int i = start; i < 10; i++) {
+            tmp.emplace_back(i);
+            dfs(i + 1, nn - i);
+            tmp.pop_back();
+        }
+    };
+    dfs(1, n);
+    return ret;
+}
+
+double largestSumOfAverages(vector<int> &nums, int k) {
+    struct NumArr {
+        NumArr(const std::vector<int> &arr) {
+            psm.resize(arr.size() + 1);
+            std::partial_sum(arr.begin(), arr.end(), psm.begin() + 1);
+        }
+
+      private:
+        std::vector<int> psm;
+        int getRange(const int l, const int r) { // [l, r]
+            return psm[r + 1] - psm[l];
+        }
+
+      public:
+        double getAvg(const int l, const int r) { return getRange(l, r) / (r - l + 1.0); }
+    };
+    const int n = nums.size();
+    double dp[n][k + 2];
+    std::memset(dp, 0, sizeof(dp));
+    NumArr nr(nums);
+    for (int i = 0; i < n; i++) {
+        dp[i][1] = nr.getAvg(0, i);
+        for (int j = 1; j <= i; j++) { //[0, j), [j, i]
+            const double tmpAvg = nr.getAvg(j, i);
+            for (int x = 1; x <= std::min(j, k); x++) {
+                dp[i][x + 1] = std::max(dp[i][x + 1], dp[j - 1][x] + tmpAvg);
+            }
+        }
+    }
+    const auto &lastLine = dp[n - 1];
+    return *std::max_element(lastLine, lastLine + k + 1);
+}
+
+string reverseStr(string s, int k) {
+    for (int i = 0; i + 2 * k <= s.size(); i += 2 * k) {
+        std::reverse(s.begin() + i, s.begin() + i + k);
+    }
+    if (s.size() % (2 * k) == 0)
+        return s;
+    const int start = s.size() / (2 * k) * 2 * k;
+    if (s.size() - start < k) {
+        std::reverse(s.begin() + start, s.end());
+    } else {
+        std::reverse(s.begin() + start, s.begin() + start + k);
+    }
+    return s;
+}
+
+int numMatchingSubseq(string s, vector<string> &words) {
+    std::queue<std::string> qs[128];
+    for (const std::string &str : words) {
+        qs[str.front()].emplace(str);
+    }
+    int ret = 0;
+    for (const char c : s) {
+        auto &curQ = qs[c];
+        const int qz = curQ.size();
+        for (int i = 0; i < qz; i++) {
+            const auto curStr = std::move(curQ.front());
+            curQ.pop();
+            if (curStr.size() == 1) {
+                ret++;
+            } else {
+                qs[curStr[1]].emplace(curStr.substr(1));
+            }
+        }
+    }
+    return ret;
+}
+
+int totalFruit(vector<int> &fruits) {
+    const int n = fruits.size();
+    int k = 2;
+    int cnt[n];
+    std::memset(cnt, 0, sizeof(cnt));
+    int l = 0, r = 0;
+    int ret = 0;
+    while (r < n) {
+        if (cnt[fruits[r++]]++ == 0)
+            k--;
+        if (k >= 0)
+            continue;
+        ret = std::max(ret, r - 1 - l);
+        while (cnt[fruits[l++]]-- > 1)
+            ;
+        k = 0;
+    }
+    ret = std::max(ret, n - l);
+    return ret;
+}
+
+int findMaxForm(vector<string> &strs, int m, int n) {
+    int dp[m + 1][n + 1];
+    std::memset(dp, 0, sizeof(dp));
+    for (const auto &str : strs) {
+        const int ones = std::count(str.begin(), str.end(), '1');
+        const int zeros = str.size() - ones;
+        for (int i = m; i >= zeros; i--) {
+            for (int j = n; j >= ones; j--) {
+                dp[i][j] = std::max(dp[i][j], dp[i - zeros][j - ones] + 1);
+            }
+        }
+    }
+    return dp[m][n];
+}
+
+int deleteAndEarn(vector<int> &nums) {
+    std::unordered_map<int, int> um;
+    for (const int i : nums) {
+        um[i]++;
+    }
+    std::vector<std::pair<int, int>> numCntVec(um.begin(), um.end());
+    std::sort(numCntVec.begin(), numCntVec.end());
+    int a = 0, b = numCntVec[0].first * numCntVec[0].second;
+    for (int i = 1; i < numCntVec.size(); i++) {
+        if (numCntVec[i - 1].first + 1 < numCntVec[i].first) {
+            a = b;
+        }
+        const int c = std::max(b, a + numCntVec[i].first * numCntVec[i].second);
+        a = b;
+        b = c;
+    }
+    return b;
+}
+
+vector<int> shortestAlternatingPaths(int n, vector<vector<int>> &redEdges,
+                                     vector<vector<int>> &blueEdges) {
+    vector<vector<vector<int>>> graph(2, vector<vector<int>>(n));
+    for (const auto &v : redEdges) {
+        graph[0][v[0]].emplace_back(v[1]);
+    }
+    for (const auto &v : blueEdges) {
+        graph[1][v[0]].emplace_back(v[1]);
+    }
+    vector<vector<int>> dist(2, vector<int>(n, INT32_MAX)); // 两种类型的颜色最短路径的长度
+    dist[0][0] = dist[1][0] = 0;
+    std::queue<pair<int, int>> q;
+    q.emplace(0, 0);
+    q.emplace(0, 1);
+    while (!q.empty()) {
+        const int qz = q.size();
+        for (int i = 0; i < qz; i++) {
+            const auto cur = q.front();
+            q.pop();
+            const int x = cur.first, t = cur.second;
+            for (const int i : graph[1 - t][x]) {
+                if (dist[1 - t][i] != INT32_MAX)
+                    continue;
+                dist[1 - t][i] = dist[t][x] + 1;
+                q.emplace(i, 1 - t);
+            }
+        }
+    }
+    vector<int> ret;
+    for (int i = 0; i < n; i++) {
+        ret.emplace_back(std::min(dist[0][i], dist[1][i]));
+        if (ret.back() == INT32_MAX)
+            ret.back() = -1;
+    }
+    return ret;
+}
+
+string findLongestWord(string s, vector<string> &dictionary) {
+    std::queue<pair<const char *, int>> qs[128];
+    for (int i = 0; i < dictionary.size(); i++) {
+        if (dictionary[i].empty())
+            continue;
+        qs[dictionary[i].front()].emplace(dictionary[i].c_str(), i);
+    }
+    size_t maxL = 0;
+    int ii = -1;
+    for (const char c : s) {
+        auto &curQ = qs[c];
+        const int qz = curQ.size();
+        for (int i = 0; i < qz; i++) {
+            const auto pr = curQ.front();
+            curQ.pop();
+            const char newC = *(pr.first + 1);
+            if (newC == 0) {
+                // ret = std::max(ret, dictionary[pr.second].size());
+                if (dictionary[pr.second].size() > maxL ||
+                    (dictionary[pr.second].size() == maxL &&
+                     dictionary[pr.second] < dictionary[ii])) {
+                    maxL = dictionary[pr.second].size();
+                    ii = pr.second;
+                }
+            } else {
+                qs[newC].emplace(pr);
+                qs[newC].back().first++;
+            }
+        }
+    }
+    // fp("ii: {}, maxL: {}\n", ii, maxL);
+    if (ii == -1) {
+        return "";
+    }
+    return dictionary[ii];
+}
+
+int minDistance(string word1, string word2) {
+    const int m = word1.size(), n = word2.size();
+    int dp[m + 1][n + 1];
+    std::memset(dp, 0, sizeof(dp));
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            if (word1[i] == word2[j]) {
+                dp[i + 1][j + 1] = dp[i][j] + 1;
+            } else {
+                dp[i + 1][j + 1] = std::max(dp[i + 1][j], dp[i][j + 1]);
+            }
+        }
+    }
+    return m + n - 2 * dp[m][n];
+}
+
+class NestedInteger {
+  public:
+    // Return true if this NestedInteger holds a single integer, rather than a nested list.
+    bool isInteger() { return true; }
+
+    // Return the single integer that this NestedInteger holds, if it holds a single integer
+    // The result is undefined if this NestedInteger holds a nested list
+    int getInteger() { return 0; }
+
+    // Return the nested list that this NestedInteger holds, if it holds a nested list
+    // The result is undefined if this NestedInteger holds a single integer
+    const vector<NestedInteger> &getList() const {
+        static vector<NestedInteger> dummy;
+        return dummy;
+    }
+};
+
+class NestedIterator {
+    std::vector<NestedInteger> stk;
+
+  public:
+    NestedIterator(vector<NestedInteger> &nestedList) {
+        for (int i = nestedList.size() - 1; i >= 0; i--) {
+            stk.emplace_back(nestedList[i]);
+        }
+    }
+
+    int next() {
+        const auto ret = stk.back().getInteger();
+        stk.pop_back();
+        return ret;
+    }
+
+    bool hasNext() {
+        if (stk.empty())
+            return false;
+        if (stk.back().isInteger())
+            return true;
+        while (!stk.empty() && !stk.back().isInteger()) {
+            auto cur = std::move(stk.back());
+            stk.pop_back();
+            auto &lst = cur.getList();
+            for (int i = lst.size() - 1; i >= 0; i--) {
+                stk.emplace_back(lst[i]);
+            }
+        }
+        return !stk.empty();
+    }
+};
+
+int longestStrChain(vector<string> &words) {
+    std::sort(words.begin(), words.end(),
+              [](string &a, string &b) -> bool { return a.size() < b.size(); });
+    int ret = 0;
+    std::unordered_map<std::string, int> um;
+    for (const auto &w : words) {
+        auto &curL = um[w];
+        curL = 1;
+        for (int i = 0; i < w.size(); i++) {
+            const std::string nw = w.substr(0, i) + w.substr(i + 1);
+            auto it = um.find(nw);
+            if (it != um.end()) {
+                curL = std::max(curL, it->second + 1);
+            }
+        }
+        ret = std::max(ret, curL);
+    }
+    return ret;
+}
+
+string entityParser(string text) {
+    /*
+    「HTML 实体解析器」 是一种特殊的解析器，它将 HTML
+    代码作为输入，并用字符本身替换掉所有这些特殊的字符实体。
+
+    HTML 里这些特殊字符和它们对应的字符实体包括：
+
+    双引号：字符实体为 &quot; ，对应的字符是 " 。
+    单引号：字符实体为 &apos; ，对应的字符是 ' 。
+    与符号：字符实体为 &amp; ，对应对的字符是 & 。
+    大于号：字符实体为 &gt; ，对应的字符是 > 。
+    小于号：字符实体为 &lt; ，对应的字符是 < 。
+    斜线号：字符实体为 &frasl; ，对应的字符是 / 。
+    */
+    std::vector<std::pair<std::string, char>> entityMap{{"&quot;", '"'}, {"&apos;", '\''},
+                                                        {"&amp;", '&'},  {"&gt;", '>'},
+                                                        {"&lt;", '<'},   {"&frasl;", '/'}};
+    for (const auto &ele : entityMap) {
+        size_t pos = 0;
+        while ((pos = text.find(ele.first, pos)) != std::string::npos) {
+            text[pos] = ele.second;
+            std::memset(&text[pos + 1], 0, ele.first.size() - 1);
+        }
+    }
+    text.erase(std::remove(text.begin(), text.end(), 0), text.end());
+    return text;
+}
+
+int numberOfSubstrings(string s) {
+    int k = 3, l = 0, r = 0, cnt[128]{}, ret = 0;
+    cnt['a'] = cnt['b'] = cnt['c'] = 1;
+    while (r < s.size()) {
+        if (cnt[s[r++]]-- > 0)
+            k--;
+        if (k > 0)
+            continue;
+        int start = l;
+        while (cnt[s[l++]]++ < 0)
+            ;
+        ret += (l - start) * (s.size() + 1 - r);
+        k = 1;
+    }
+    return ret;
+}
+
+bool wordPattern(string pattern, string s) {
+    std::string s2p[128]{};
+    std::unordered_map<std::string, char> p2s;
+    auto split = [&]() -> std::vector<std::string> {
+        std::string tmp;
+        std::vector<std::string> ret;
+        for (const char c : s) {
+            if (std::isspace(c)) {
+                if (!tmp.empty()) {
+                    ret.emplace_back(std::move(tmp));
+                }
+            } else {
+                tmp.push_back(c);
+            }
+        }
+        if (!tmp.empty()) {
+            ret.emplace_back(tmp);
+        }
+        return ret;
+    };
+    std::vector<std::string> pVec = split();
+    if (pVec.size() != pattern.size())
+        return false;
+    for (int i = 0; i < pattern.size(); i++) {
+        const std::string &pStr = pVec[i];
+        const char c = pattern[i];
+        if (!s2p[c].empty() && s2p[c] != pStr || p2s[pStr] != 0 && p2s[pStr] != c) {
+            return false;
+        }
+        s2p[c] = pStr;
+        p2s[pStr] = c;
+    }
+    return true;
+}
+
+vector<int> findMinHeightTrees(int n, vector<vector<int>> &edges) {
+    if (n == 1)
+        return {0};
+    std::vector<std::unordered_set<int>> graph(n);
+    for (const auto &ev : edges) {
+        graph[ev[0]].emplace(ev[1]);
+        graph[ev[1]].emplace(ev[0]);
+    }
+    std::queue<int> q;
+    for (int i = 0; i < n; i++) {
+        if (graph[i].size() == 1) {
+            q.emplace(i);
+        }
+    }
+    std::vector<int> ret;
+    while (!q.empty()) {
+        ret.clear();
+        const int qz = q.size();
+        for (int j = 0; j < qz; j++) {
+            const int i = q.front();
+            ret.emplace_back(i);
+            q.pop();
+            for (const int j : graph[i]) {
+                graph[j].erase(i);
+                if (graph[j].size() == 1) {
+                    q.emplace(j);
+                }
+            }
+        }
+    }
+    return ret;
+}
+
+vector<vector<int>> findSubsequences(vector<int> &nums) {
+
+    std::vector<int> tmp;
+    vector<vector<int>> ret;
+    std::function<void(const int)> dfs = [&](const int start) {
+        if (tmp.size() > 1)
+            ret.emplace_back(tmp);
+        std::unordered_set<int> used;
+        for (int i = start; i < nums.size(); i++) {
+            if (!tmp.empty() && nums[i] < tmp.back())
+                continue;
+            if (!used.emplace(nums[i]).second)
+                continue;
+            tmp.emplace_back(nums[i]);
+            dfs(i + 1);
+            tmp.pop_back();
+        }
+    };
+    dfs(0);
+    return ret;
+}
+
+int maxUncrossedLines(vector<int> &nums1, vector<int> &nums2) {
+    const int m = nums1.size(), n = nums2.size();
+    int dp[m + 1][n + 1];
+    std::memset(dp, 0, sizeof(dp));
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            if (nums1[i] == nums2[j]) {
+                dp[i + 1][j + 1] = dp[i][j] + 1;
+            } else {
+                dp[i + 1][j + 1] = std::max(dp[i + 1][j], dp[i][j + 1]);
+            }
+        }
+    }
+    return dp[m][n];
+}
+
+int pivotIndex(vector<int> &nums) {
+    const int total = std::accumulate(nums.begin(), nums.end(), 0);
+    int sm = 0;
+    for (int i = 0; i < nums.size(); i++) {
+        if (2 * sm + nums[i] == total)
+            return i;
+        sm += nums[i];
+    }
+    return -1;
+}
+
+string reverseVowels(string s) {
+    bool vowels[128]{};
+    vowels['A'] = vowels['E'] = vowels['I'] = vowels['O'] = vowels['U'] = true;
+    vowels['a'] = vowels['e'] = vowels['i'] = vowels['o'] = vowels['u'] = true;
+    int l = 0, r = s.size() - 1;
+    while (l < r) {
+        if (!vowels[s[l]]) {
+            l++;
+        } else if (!vowels[s[r]]) {
+            r--;
+        } else {
+            std::swap(vowels[l++], vowels[r--]);
+        }
+    }
+    return s;
+}
+
+int subarraysWithKDistinct(vector<int> &nums, int k) {
+    const int n = nums.size();
+    auto farthest = [&](const int x) -> std::vector<int> {
+        std::vector<int> ret(n, -1);
+        int l = 0, r = 0;
+        int kk = x;
+        std::unordered_map<int, int> um;
+        while (r < n) {
+            if (um[nums[r++]]++ == 0)
+                kk--;
+            if (kk > 0)
+                continue;
+            if (kk == 0) {
+                ret[r - 1] = l;
+                continue;
+            }
+            kk = 0;
+            while (um[nums[l++]]-- > 1)
+                ;
+            // fp("l: {}, r: {}, kk: {}\n", l, r, kk);
+            ret[r - 1] = l;
+        }
+        return ret;
+    };
+    const auto fk_1 = farthest(k - 1);
+    const auto fk = farthest(k);
+    // fp("fk_1: {}\n", fk_1);
+    // fp("fk: {}\n", fk);
+    int ret = 0;
+    for (int i = 0; i < n; i++) {
+        if (fk[i] == -1)
+            continue;
+        ret += fk_1[i] - fk[i];
+    }
+    return ret;
+}
+
+string shortestCommonSupersequence(string str1, string str2) {
+    const int m = str1.size(), n = str2.size();
+    int dp[m + 1][n + 1];
+    std::memset(dp, 0, sizeof(dp));
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            if (str1[i] == str2[j]) {
+                dp[i + 1][j + 1] = dp[i][j] + 1;
+            } else {
+                dp[i + 1][j + 1] = std::max(dp[i + 1][j], dp[i][j + 1]);
+            }
+        }
+    }
+    // print dp
+    //  for (int i = 0; i <= m; i++) {
+    //      for (int j = 0; j <= n; j++) {
+    //          fp("{} ", dp[i][j]);
+    //      }
+    //      fp("\n");
+    //  }
+    int i = m - 1, j = n - 1;
+    std::string ret;
+    while (i >= 0 && j >= 0) {
+        if (str1[i] == str2[j]) {
+            ret.push_back(str1[i]);
+            i--;
+            j--;
+        } else {
+            if (dp[i + 1][j + 1] == dp[i + 1][j]) {
+                ret.push_back(str2[j--]);
+            } else {
+                ret.push_back(str1[i--]);
+            }
+        }
+    }
+    while (i >= 0) {
+        ret.push_back(str1[i--]);
+    }
+    while (j >= 0) {
+        ret.push_back(str2[j--]);
+    }
+    std::reverse(ret.begin(), ret.end());
+    return ret;
+}
+
+int findLHS(vector<int> &nums) {
+    std::unordered_map<int, int> um;
+    for (const int i : nums) {
+        um[i]++;
+    }
+    int ret = 0;
+    for (const auto &ele : um) {
+        if (um.find(ele.first + 1) == um.end())
+            continue;
+        const int add1Cnt = um[ele.first + 1];
+        ret = std::max(ret, add1Cnt + ele.second);
+    }
+    return ret;
+}
+
+class WordFilter {
+    std::vector<std::string> getAllNewWord(const std::string &w) {
+        std::vector<std::string> ret;
+        for (int i = 0; i <= w.size(); i++) {
+            ret.emplace_back(w.substr(i) + '#' + w);
+        }
+        return ret;
+        ;
+    }
+
+    struct Trie {
+        struct Node {
+            Node *children[128]{};
+            int idx{-1};
+        };
+        Node *const head = new Node;
+
+      private:
+        void insW(const std::string &w, const int idx) {
+            Node *cursor = head;
+            for (const char c : w) {
+                if (cursor->children[c] == nullptr) {
+                    cursor->children[c] = new Node;
+                }
+                cursor = cursor->children[c];
+                cursor->idx = idx;
+            }
+        }
+
+      public:
+        void insWs(const vector<string> &ws, const int idx) {
+            fp("ws: {}\n", ws);
+            for (const std::string &w : ws)
+                insW(w, idx);
+        }
+        int getIdx(const std::string &w) {
+            Node *cursor = head;
+            for (const char c : w) {
+                if (cursor->children[c] == nullptr)
+                    return -1;
+                cursor = cursor->children[c];
+            }
+            return cursor->idx;
+        }
+    };
+
+  public:
+    Trie tr;
+    WordFilter(vector<string> &words) {
+        for (int i = 0; i < words.size(); i++) {
+            const std::vector<std::string> allW = getAllNewWord(words[i]);
+            tr.insWs(allW, i);
+        }
+    }
+
+    int f(string pref, string suff) { return tr.getIdx(suff + '#' + pref); }
+};
+
+int jewelleryValue(vector<vector<int>> &frame) {
+    const int m = frame.size(), n = frame[0].size();
+    int dp[m + 1][n + 1];
+    std::memset(dp, 0, sizeof(dp));
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            dp[i + 1][j + 1] = std::max(dp[i][j + 1], dp[i + 1][j]) + frame[i][j];
+        }
+    }
+    return dp[m][n];
+}
+
+string reverseParentheses(string s) {
+    int l = 0, r = s.size() - 1;
+    while (l < r && s[l] != '(')
+        l++;
+    while (l < r && s[r] != ')')
+        r--;
+    l++;
+    r--;
+    int pCnt = 0;
+    while (l < r) {
+        pCnt++;
+        int startL = l, startR = r;
+        while (l < r && s[l] != '(')
+            l++;
+        while (l < r && s[r] != ')')
+            r--;
+        if (pCnt % 2 != 0) {
+            int ll = startL, rr = startR;
+            while (ll < rr) {
+                if (s[ll] == '(') {
+                    ll = r + 1;
+                    continue;
+                }
+                if (s[rr] == ')') {
+                    rr = l - 1;
+                    continue;
+                }
+                std::swap(s[ll++], s[rr--]);
+            }
+        }
+        l++;
+        r--;
+    }
+    s.erase(std::remove(s.begin(), s.end(), '('), s.end());
+    s.erase(std::remove(s.begin(), s.end(), ')'), s.end());
+    return s;
+}
+
 } // namespace D
 
 int main() {
-    std::vector<std::vector<int>> board{{1, 2, 3}, {4, 0, 5}};
-    const auto ret = D::slidingPuzzle(board);
+    const auto ret = D::reverseParentheses("(ed(et(oc))el)");
     fp("ret: {}\n", ret);
     return 0;
 }
