@@ -27,7 +27,7 @@ TM_TEST_OBJ = $(patsubst %.cpp,$(TEST_BUILD_DIR)/%.o,$(TM_TEST_SRC))
 CXXSTD ?= -std=c++20
 # Default to quiet builds; override e.g. `make CXXWARN='-Wall -Wextra -Wpedantic'`.
 CXXWARN ?= -w
-CXXFLAGS ?= $(CXXSTD) -O0 -g $(CXXWARN)
+CXXFLAGS ?= $(CXXSTD) -Og -g $(CXXWARN)
 
 ASAN_CXXFLAGS := -fsanitize=address -fno-omit-frame-pointer
 ASAN_LDFLAGS := -fsanitize=address

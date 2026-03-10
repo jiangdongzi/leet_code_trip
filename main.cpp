@@ -7781,48 +7781,48 @@ int jewelleryValue(vector<vector<int>> &frame) {
     return dp[m][n];
 }
 
-string reverseParentheses(string s) {
-    int l = 0, r = s.size() - 1;
-    while (l < r && s[l] != '(')
-        l++;
-    while (l < r && s[r] != ')')
-        r--;
-    l++;
-    r--;
-    int pCnt = 0;
-    while (l < r) {
-        pCnt++;
-        int startL = l, startR = r;
-        while (l < r && s[l] != '(')
-            l++;
-        while (l < r && s[r] != ')')
-            r--;
-        if (pCnt % 2 != 0) {
-            int ll = startL, rr = startR;
-            while (ll < rr) {
-                if (s[ll] == '(') {
-                    ll = r + 1;
-                    continue;
-                }
-                if (s[rr] == ')') {
-                    rr = l - 1;
-                    continue;
-                }
-                std::swap(s[ll++], s[rr--]);
-            }
+std::string reverseParentheses(std::string s) {
+    std::vector<int> st; // 用来记录左括号 '(' 的索引位置
+
+    for (int i = 0; i < s.size(); ++i) {
+        if (s[i] == '(') {
+            st.push_back(i);
+        } else if (s[i] == ')') {
+            // 找到最近的一个左括号，翻转它们之间的字符串
+            int start = st.back();
+            st.pop_back();
+            std::reverse(s.begin() + start + 1, s.begin() + i);
         }
-        l++;
-        r--;
     }
+
+    // 保留你原本的写法：最后统一移除所有括号
     s.erase(std::remove(s.begin(), s.end(), '('), s.end());
     s.erase(std::remove(s.begin(), s.end(), ')'), s.end());
+
     return s;
+}
+
+int furthestBuilding(vector<int> &heights, int bricks, int ladders) {
+    std::priority_queue<int, std::vector<int>, std::greater<int>> pq;
+    int sumH = 0;
+    for (int i = 1; i < heights.size(); i++) {
+        if (heights[i] <= heights[i - 1]) continue;
+        pq.emplace(heights[i] - heights[i - 1]);
+        if (pq.size() <= ladders) continue;
+        sumH += pq.top();
+        pq.pop();
+        if (sumH > bricks) {
+            return i - 1;
+        }
+    }
+    return heights.size();
 }
 
 } // namespace D
 
 int main() {
-    const auto ret = D::reverseParentheses("(ed(et(oc))el)");
+    vector<int> heights {3,19,3};
+    const auto ret = D::furthestBuilding(heights, 17, 0);
     fp("ret: {}\n", ret);
     return 0;
 }
