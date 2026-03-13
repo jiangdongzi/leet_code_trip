@@ -14,6 +14,7 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <pthread.h>
 #include <queue>
 #include <stdexcept>
 #include <string>
@@ -742,7 +743,7 @@ string convert(string s, int numRows) {
     return ret;
 }
 
-vector<string> letterCombinations(string digits) {
+vector<string> letterGbinations(string digits) {
     static vector<string> phone_strs = {" ",   "",    "abc",  "def", "ghi",
                                         "jkl", "mno", "pqrs", "tuv", "wxyz"};
 
@@ -6145,73 +6146,6 @@ int findShortestSubArray(vector<int> &nums) {
     return ret;
 }
 
-bool splitArraySameAverage(vector<int> &nums) {
-    int n = nums.size();
-    if (n <= 1)
-        return false;
-
-    int sum = accumulate(nums.begin(), nums.end(), 0);
-
-    // 1. 数学平移：让所有满足条件的子集和变成 0
-    for (int &x : nums) {
-        x = x * n - sum;
-    }
-
-    int half = n / 2;
-    unordered_set<int> leftSums;
-
-    // 2. 左半段 DFS
-    // 参数: 当前索引 idx, 当前和 currentSum, 选中的元素个数 count
-    auto dfsLeft = [&](auto &&self, int idx, int currentSum, int count) -> bool {
-        if (idx == half) {
-            // 如果左半段自己就凑出了 0（且不是空集），直接成功
-            if (count > 0 && currentSum == 0)
-                return true;
-            // 将左半段的子集和存入哈希表。
-            // 注意：排除空集，也排除全选的情况（防止左右拼起来变成整个原数组）
-            if (count > 0 && count < half) {
-                leftSums.insert(currentSum);
-            }
-            return false;
-        }
-        // 不选当前元素
-        if (self(self, idx + 1, currentSum, count))
-            return true;
-        // 选当前元素
-        if (self(self, idx + 1, currentSum + nums[idx], count + 1))
-            return true;
-        return false;
-    };
-
-    if (dfsLeft(dfsLeft, 0, 0, 0))
-        return true;
-
-    // 3. 右半段 DFS
-    auto dfsRight = [&](auto &&self, int idx, int currentSum, int count) -> bool {
-        if (idx == n) {
-            // 如果右半段自己凑出了 0（且不是空集），直接成功
-            if (count > 0 && currentSum == 0)
-                return true;
-
-            // 如果左半段和右半段拼起来凑成了 0
-            // count < (n - half) 是为了确保右半段没有全选，从而保证拼出来的不是整个原数组
-            if (count > 0 && count < (n - half) && leftSums.count(-currentSum)) {
-                return true;
-            }
-            return false;
-        }
-        // 不选当前元素
-        if (self(self, idx + 1, currentSum, count))
-            return true;
-        // 选当前元素
-        if (self(self, idx + 1, currentSum + nums[idx], count + 1))
-            return true;
-        return false;
-    };
-
-    return dfsRight(dfsRight, half, 0, 0);
-}
-
 TreeNode *convertBST(TreeNode *root) {
     int preNodeSm = 0;
     std::function<void(TreeNode *)> dfs = [&](TreeNode *root) {
@@ -6832,7 +6766,7 @@ bool parseBoolExpr(string expression) {
     return ret.front();
 }
 
-class Solution {
+class Solution3 {
   public:
     bool parseBoolExpr(string expression) {
         int idx = 0;
@@ -7806,23 +7740,960 @@ int furthestBuilding(vector<int> &heights, int bricks, int ladders) {
     std::priority_queue<int, std::vector<int>, std::greater<int>> pq;
     int sumH = 0;
     for (int i = 1; i < heights.size(); i++) {
-        if (heights[i] <= heights[i - 1]) continue;
+        if (heights[i] <= heights[i - 1])
+            continue;
         pq.emplace(heights[i] - heights[i - 1]);
-        if (pq.size() <= ladders) continue;
+        if (pq.size() <= ladders)
+            continue;
         sumH += pq.top();
         pq.pop();
         if (sumH > bricks) {
             return i - 1;
         }
     }
-    return heights.size();
+    return heights.size() - 1;
+}
+
+int countCharacters(vector<string> &words, string chars) {
+
+    int cnt[128]{};
+    for (const char c : chars)
+        cnt[c]++;
+    auto canForm = [&](const std::string &w) -> bool {
+        int wCnt[128]{};
+        for (const char c : w)
+            wCnt[c]++;
+        for (char c = 'a'; c <= 'z'; c++) {
+            if (wCnt[c] > cnt[c])
+                return false;
+        }
+        return true;
+    };
+    int ret = 0;
+    for (const auto &w : words) {
+        if (!canForm(w))
+            continue;
+        ret += w.size();
+    }
+    return ret;
+}
+
+int findRadius(vector<int> &houses, vector<int> &heaters) {
+    std::sort(houses.begin(), houses.end());
+    std::sort(heaters.begin(), heaters.end());
+    int i = 0, j = 0;
+    int ret = 0;
+    while (i < houses.size()) {
+        if (j == heaters.size()) {
+            ret = std::max(ret, std::abs(heaters.back() - houses[i++]));
+            continue;
+        }
+        if (heaters[j] < houses[i]) {
+            j++;
+            continue;
+        }
+        if (j == 0) {
+            ret = std::max(ret, heaters[j] - houses[i]);
+        } else {
+            const int minR = std::min(houses[i] - heaters[j - 1], heaters[j] - houses[i]);
+            ret = std::max(ret, minR);
+        }
+        i++;
+    }
+    return ret;
+}
+
+int numRescueBoats(vector<int> &people, int limit) {
+    std::sort(people.rbegin(), people.rend());
+    int l = 0, r = people.size() - 1;
+    int ret = 0;
+    while (l < r) {
+        ret++;
+        if (people[l] + people[r] <= limit) {
+            r--;
+        }
+        l++;
+    }
+    return ret + (l == r);
+}
+
+int numSubarrayProductLessThanK(vector<int> &nums, int k) {
+    const int n = nums.size();
+    if (k < 2)
+        return 0;
+    int l = 0, r = 0;
+    int sm = 1;
+    int ret = 0;
+    while (r < n) {
+        sm *= nums[r++];
+        if (sm < k)
+            continue;
+        int start = l;
+        while (sm >= k) {
+            sm /= nums[l++];
+        }
+        const int a1 = r - l, an = r - 1 - start;
+        ret += (a1 + an) * (an - a1 + 1) / 2;
+    }
+    fp("l: {}, r: {}, sm: {}, ret: {}\n", l, r, sm, ret);
+    ret += (n - l + 1) * (n - l) / 2;
+    return ret;
+}
+
+int combinationSum4(vector<int> &nums, int target) {
+    int dp[target + 1];
+    std::memset(dp, -1, sizeof(dp));
+    std::function<int(const int)> dfs = [&](const int rest) -> int {
+        if (rest <= 0) {
+            if (rest == 0) {
+                return 1;
+            }
+            return 0;
+        }
+        int &memo = dp[rest];
+        if (memo != -1) {
+            return memo;
+        }
+        int ret = 0;
+        for (int i = 0; i < nums.size(); i++) {
+            ret += dfs(rest - nums[i]);
+        }
+        return memo = ret;
+    };
+    return dfs(target);
+}
+
+vector<vector<int>> floodFill(vector<vector<int>> &image, int sr, int sc, int color) {
+    const int m = image.size(), n = image[0].size();
+    constexpr static int dirs[4][2]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    auto isValid = [&](const int i, const int j) { return i >= 0 && i < m && j >= 0 && j < n; };
+    const int rawColor = image[sr][sc];
+    if (rawColor == color)
+        return image;
+    std::function<void(const int, const int)> dfs = [&](const int i, const int j) {
+        if (!isValid(i, j))
+            return;
+        if (image[i][j] != rawColor)
+            return;
+        image[i][j] = color;
+        for (const auto &d : dirs) {
+            dfs(i + d[0], j + d[1]);
+        }
+    };
+    dfs(sr, sc);
+    return image;
+}
+
+vector<vector<int>> allPathsSourceTarget(vector<vector<int>> &graph) {
+    const int n = graph.size();
+    std::vector<int> tmp;
+    std::vector<std::vector<int>> ret;
+    std::function<void(const int)> dfs = [&](const int i) {
+        if (i == n - 1) {
+            ret.emplace_back(tmp);
+            return;
+        }
+        for (const int neighbor : graph[i]) {
+            tmp.emplace_back(neighbor);
+            dfs(neighbor);
+            tmp.pop_back();
+        }
+    };
+    tmp.emplace_back(0);
+    dfs(0);
+    return ret;
+}
+
+int numberOfArithmeticSlices(vector<int> &nums) {
+    const int n = nums.size();
+    std::vector<std::unordered_map<int64_t, int>> cache(n);
+    int ret = 0;
+    for (int i = 1; i < n; i++) {
+        for (int j = 0; j < i; j++) {
+            const int64_t diff = (int64_t)nums[i] - nums[j];
+            auto it = cache[j].find(diff);
+            int cnt;
+            if (it == cache[j].end()) {
+                cnt = 0;
+            } else {
+                cnt = it->second;
+            }
+            cache[i][diff] += cnt + 1;
+            ret += cnt;
+        }
+    }
+    return ret;
+}
+
+vector<vector<int>> reconstructQueue(vector<vector<int>> &people) {
+    std::sort(people.begin(), people.end(), [](const vector<int> &a, const vector<int> &b) -> bool {
+        if (a[0] == b[0]) {
+            return a[1] < b[1];
+        }
+        return a[0] > b[0];
+    });
+    std::vector<vector<int>> ret;
+    for (const auto &p : people) {
+        ret.insert(ret.begin() + p[1], p);
+    }
+    return ret;
+}
+
+class Solution {
+    double radius, x_center, y_center;
+    double getRand(const double a, const double b) { //[a, b]
+        const double x = rand() / (double)RAND_MAX;
+        return a + (b - a) * x;
+    }
+
+  public:
+    Solution(double radius, double x_center, double y_center) {
+        this->radius = radius;
+        this->x_center = x_center;
+        this->y_center = y_center;
+    }
+
+    vector<double> randPoint() {
+        while (true) {
+            const auto x = getRand(x_center - radius, x_center + radius);
+            const auto y = getRand(y_center - radius, y_center + radius);
+            if ((x - x_center) * (x - x_center) + (y - y_center) * (y - y_center) <=
+                radius * radius) {
+                return {x, y};
+            }
+        }
+    }
+};
+
+int characterReplacement(string s, int k) {}
+
+TreeNode *constructMaximumBinaryTree(vector<int> &nums) {
+    auto getMaxIdx = [&](const int s, const int e) -> int {
+        return std::max_element(nums.begin() + s, nums.begin() + e) - nums.begin();
+    };
+    std::function<TreeNode *(const int, const int)> dfs = [&](const int b,
+                                                              const int e) -> TreeNode * {
+        if (b == e)
+            return nullptr;
+        if (b + 1 == e)
+            return new TreeNode(nums[b]);
+        const int middle = getMaxIdx(b, e);
+        TreeNode *root = new TreeNode(nums[middle]);
+        root->left = dfs(b, middle);
+        root->right = dfs(middle + 1, e);
+        return root;
+    };
+    return dfs(0, nums.size());
+}
+
+vector<int> plusOne(vector<int> &digits) {
+    std::vector<int> ret;
+    int carry = 1;
+    int i = digits.size() - 1;
+    while (i >= 0 || carry > 0) {
+        const int d = i == -1 ? 0 : digits[i--];
+        const int sm = d + carry;
+        ret.emplace_back(sm % 10);
+        carry = sm / 10;
+    }
+    std::reverse(ret.begin(), ret.end());
+    return ret;
+}
+
+class NumMatrix {
+    std::vector<std::vector<int>> sm;
+
+  public:
+    NumMatrix(vector<vector<int>> &matrix) {
+        const int m = matrix.size(), n = matrix[0].size();
+        std::vector<std::vector<int>> tmpSm(m + 1, std::vector<int>(n));
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                tmpSm[i + 1][j + 1] =
+                    tmpSm[i + 1][j] + tmpSm[i][j + 1] + matrix[i][j] - tmpSm[i][j];
+            }
+        }
+        sm.swap(tmpSm);
+    }
+
+    int sumRegion(int row1, int col1, int row2, int col2) {
+        return sm[row2 + 1][col2 + 1] - sm[row2 + 1][col1] - sm[row1][col2 + 1] + sm[row1][col1];
+    }
+};
+
+bool canArrange(vector<int> &arr, int k) {
+    if (k == 1)
+        return true;
+    std::unordered_map<int, int> um;
+    for (const int i : arr) {
+        um[(i % k + k) % k]++;
+    }
+    for (const auto &pr : um) {
+        if (pr.first == 0) {
+            if (pr.second % 2 != 0)
+                return false;
+            continue;
+        }
+        if (um[k - pr.first] != pr.second)
+            return false;
+    }
+    return true;
+}
+
+vector<int> statisticalResult(vector<int> &arrayA) {
+    std::vector<int64_t> sufSm(arrayA.size());
+    sufSm[arrayA.size() - 1] = arrayA.back();
+    for (int i = arrayA.size() - 2; i > 0; i--) {
+        sufSm[i] = sufSm[i + 1] * arrayA[i];
+    }
+    vector<int> ret(arrayA.size());
+    ret.front() = sufSm[1];
+    int64_t preSm = arrayA.front();
+    for (int i = 1; i < arrayA.size() - 1; i++) {
+        ret[i] = preSm * sufSm[i + 1];
+        preSm *= arrayA[i];
+    }
+    ret.back() = preSm;
+    return ret;
+}
+
+string shiftingLetters(string s, vector<int> &shifts) {
+    std::vector<long> psm(s.size());
+    psm.back() = shifts.back();
+    for (int i = shifts.size() - 2; i >= 0; i++) {
+        psm[i] = psm[i + 1] + shifts[i];
+    }
+    for (int i = 0; i < s.size(); i++) {
+        const int x = psm[i] % 26;
+        if (s[i] + x <= 'z') {
+            s[i] += x;
+        } else {
+            s[i] += x - 26;
+        }
+    }
+    return s;
+}
+
+int numRollsToTarget(int n, int k, int target) {
+    // int dp[n + 1][target + 1];
+    std::vector<std::vector<long>> dp(n + 1, std::vector<long>(target + 1));
+    // std::memset(dp, 0, sizeof(dp));
+    dp[0][0] = 1;
+    for (int i = 1; i <= n; i++) {
+        for (int j = i; j <= std::min(target, i * k); j++) {
+            for (int x = 1; x <= std::min(j, k); x++) {
+                dp[i][j] += dp[i - 1][j] + dp[i - 1][j - x];
+                dp[i][j] %= 1000000007;
+            }
+        }
+    }
+    return dp[n][target] % 1000000007;
+}
+
+vector<vector<int>> kClosest(vector<vector<int>> &points, int k) {
+    std::priority_queue<std::pair<int, int>> pq;
+    for (int i = 0; i < points.size(); i++) {
+        const int a = points[i][0], b = points[i][1];
+        const int distance = a * a + b * b;
+        pq.emplace(distance, i);
+        if (pq.size() > k)
+            pq.pop();
+    }
+    std::vector<std::vector<int>> ret;
+    while (!pq.empty()) {
+        const auto cur = pq.top();
+        pq.pop();
+        ret.emplace_back(points[cur.second]);
+    }
+    return ret;
+}
+
+int deepestLeavesSum(TreeNode *root) {
+    std::function<int(TreeNode *)> maxDepth = [&](TreeNode *root) -> int {
+        if (root == nullptr)
+            return 0;
+        return std::max(maxDepth(root->left), maxDepth(root->right)) + 1;
+    };
+    const int md = maxDepth(root);
+    int ret = 0;
+    std::function<void(TreeNode *, const int)> dfs = [&](TreeNode *root, const int level) {
+        if (root == nullptr)
+            return;
+        if (level == md) {
+            ret += root->val;
+            return;
+        }
+        dfs(root->left, level + 1);
+        dfs(root->right, level + 1);
+    };
+    dfs(root, 1);
+    return ret;
+}
+
+string largestMultipleOfThree(vector<int> &digits) {
+    std::vector<int> buckets[3];
+    for (int i = 0; i < digits.size(); i++) {
+        buckets[digits[i] % 3].emplace_back(digits[i]);
+    }
+    const int sm = std::accumulate(digits.begin(), digits.end(), 0);
+    std::sort(digits.begin(), digits.end());
+    auto eraseDigitsVal = [&](const int val) {
+        auto it = std::find(digits.begin(), digits.end(), val);
+        digits.erase(it);
+    };
+    if (sm % 3 == 1) {
+        if (!buckets[1].empty()) {
+            const int minVal = *std::min_element(buckets[1].begin(), buckets[1].end());
+            eraseDigitsVal(minVal);
+        } else if (buckets[2].size() < 2) {
+            std::sort(buckets[0].begin(), buckets[0].end());
+            digits.swap(buckets[0]);
+        } else {
+            eraseDigitsVal(buckets[2].back());
+            eraseDigitsVal(buckets[2][buckets[2].size() - 2]);
+        }
+    } else if (sm % 3 == 2) {
+        if (!buckets[2].empty()) {
+            const int minVal = *std::min_element(buckets[2].begin(), buckets[2].end());
+            eraseDigitsVal(minVal);
+        } else if (buckets[1].size() < 2) {
+            std::sort(buckets[0].begin(), buckets[0].end());
+            digits.swap(buckets[0]);
+        } else {
+            eraseDigitsVal(buckets[1].back());
+            eraseDigitsVal(buckets[1][buckets[1].size() - 2]);
+        }
+    }
+    std::string ret;
+    for (const int i : digits) {
+        ret.push_back(i + '0');
+    }
+    std::reverse(ret.begin(), ret.end());
+    if (ret.front() == '0')
+        return "0";
+    return ret;
+}
+
+string nearestPalindromic(string n) {
+    if (n.size() == 1) {
+        if (n.front() == '0')
+            return "1";
+        n.front()--;
+        return n;
+    }
+    long long num = std::stoll(n);
+    if ((long long)(1e19) % num == 0) {
+        num--;
+        return std::to_string(num);
+    }
+    if (n == "11")
+        return "9";
+    auto all9 = [&]() -> bool {
+        for (const char c : n) {
+            if (c != '9')
+                return false;
+        }
+        return true;
+    };
+    if (all9()) {
+        n.assign(n.size(), '0');
+        n.front() = '1';
+        n.push_back('1');
+    }
+    const int z = n.size();
+    if (n.size() % 2 == 0) {
+        std::string tmp = n.substr(z / 2);
+        std::reverse(tmp.begin(), tmp.end());
+        if (n.substr(0, z / 2) == tmp) {
+            if (n.at(z / 2) == '0') {
+                n[z / 2] = n[z / 2 - 1] = '1';
+            } else {
+                n[z / 2] = n[z / 2 - 1] = n[1 / 2] - 1;
+            }
+            return n;
+        } else {
+            auto y = n.substr(0, z / 2);
+            auto x = y;
+            std::reverse(y.begin(), y.end());
+            return x + y;
+        }
+    } else {
+        std::string x = n.substr(0, z / 2);
+        std::string y = n.substr(z / 2 + 1);
+        std::reverse(y.begin(), y.end());
+        if (x == y) {
+            if (x.back() == '0') {
+                x.back() = '9';
+                y = x;
+                std::reverse(y.begin(), y.end());
+                return x + n.at(z / 2) + y;
+            } else {
+                x.back()--;
+                y = x;
+                std::reverse(y.begin(), y.end());
+                return x + n.at(z / 2) + y;
+            }
+        } else {
+            y = x;
+            std::reverse(y.begin(), y.end());
+            return n.substr(0, z / 2 + 1) + y;
+        }
+    }
+}
+
+vector<int> findDisappearedNumbers(vector<int> &nums) {
+    const int n = nums.size();
+    for (int i = 0; i < nums.size(); i++) {
+        while (nums[i] > 0 && nums[i] <= n && nums[nums[i] - 1] != nums[i]) {
+            std::swap(nums[i], nums[nums[i] - 1]);
+        }
+    }
+    std::vector<int> ret;
+    for (int i = 0; i < n; i++) {
+        if (i + 1 != nums[i]) {
+            ret.emplace_back(i + 1);
+        }
+    }
+    return ret;
+}
+
+string pathEncryption(string path) {
+    for (char &c : path) {
+        if (c == '.')
+            c = ' ';
+    }
+    return path;
+}
+
+uint32_t reverseBits(uint32_t n) {
+    uint32_t ret = 0;
+    for (int i = 0; i < 32; i++) {
+        if (n & (1 << i)) {
+            ret |= (1 << (31 - i));
+        }
+    }
+    return ret;
 }
 
 } // namespace D
 
+namespace E {
+class Solution {
+  public:
+    vector<int> splitIntoFibonacci(string num) {
+        vector<int> path;
+        dfs(num, 0, path);
+        return path;
+    }
+
+  private:
+    bool dfs(const string &num, int start, vector<int> &path) {
+        if (start == num.size()) {
+            return path.size() >= 3;
+        }
+
+        long long cur = 0;
+        for (int i = start; i < num.size(); i++) {
+            // 前导 0 剪枝
+            if (i > start && num[start] == '0')
+                break;
+
+            cur = cur * 10 + (num[i] - '0');
+
+            // 超过 int 范围
+            if (cur > INT32_MAX)
+                break;
+
+            if (path.size() >= 2) {
+                long long sum = 1LL * path[path.size() - 1] + path[path.size() - 2];
+
+                if (cur < sum)
+                    continue;
+                if (cur > sum)
+                    break;
+            }
+
+            path.push_back((int)cur);
+            if (dfs(num, i + 1, path))
+                return true;
+            path.pop_back();
+        }
+        return false;
+    }
+};
+
+vector<int> shortestToChar(string s, char c) {
+    std::vector<int> cIdxes;
+    for (int i = 0; i < s.size(); i++) {
+        if (s[i] == c)
+            cIdxes.emplace_back(i);
+    }
+    std::vector<int> ret(s.size());
+    int i = 0, j = 0;
+    while (i < s.size()) {
+        if (j == cIdxes.size()) {
+            ret[i] = std::abs(i - cIdxes.back());
+            i++;
+            continue;
+        }
+        if (cIdxes[j] < i) {
+            j++;
+            continue;
+        }
+
+        ret[i] = cIdxes[j] - i;
+        if (j > 0) {
+            ret[i] = std::min(ret[i], i - cIdxes[j - 1]);
+        }
+        i++;
+    }
+    return ret;
+}
+
+int findKthNumber(int m, int n, int k) {
+    auto cntOfElesLEK = [&](const int k) -> int {
+        int i = 1, j = n;
+        int ret = 0;
+        while (i <= m && j > 0) {
+            while (j > 0 && i * j > k)
+                j--;
+            ret += j;
+            i++;
+        }
+        return ret;
+    };
+    if (m > n) {
+        swap(n, m);
+    }
+    int l = 1, r = m * n;
+    while (l < r) {
+        const int mid = l + (r - l) / 2;
+        if (cntOfElesLEK(mid) < k) {
+            l = mid + 1;
+        } else {
+            r = mid;
+        }
+    }
+    return l;
+}
+
+int robotSim(vector<int> &commands, vector<vector<int>> &obstacles) {
+    /*
+    机器人在一个无限大小的 XY 网格平面上行走，从点 (0, 0)
+    处开始出发，面向北方。该机器人可以接收以下三种类型的命令 commands ：
+
+    -2 ：向左转 90 度
+    -1 ：向右转 90 度
+    1 <= x <= 9 ：向前移动 x 个单位长度
+    在网格上有一些格子被视为障碍物 obstacles 。第 i 个障碍物位于网格点  obstacles[i] = (xi, yi) 。
+
+    机器人无法走到障碍物上，它将会停留在障碍物的前一个网格方块上，并继续执行下一个命令。
+
+    返回机器人距离原点的 最大欧式距离 的 平方 。（即，如果距离为 5 ，则返回 25 ）
+    */
+    int dir = 0;
+    auto setNewDir = [&](const int command) {
+        assert(command == -1 || command == -2);
+        if (command == -2) {
+            dir = (dir - 1 + 4) % 4;
+        } else {
+            dir = (dir + 1) % 4;
+        }
+    };
+    int x = 0, y = 0;
+    std::unordered_map<int, std::vector<int>> xObs, yObs;
+    for (const auto &o : obstacles) {
+        const int x = o[0], y = o[1];
+        xObs[x].emplace_back(y);
+        yObs[y].emplace_back(x);
+    }
+    auto sortMp = [](std::unordered_map<int, std::vector<int>> &obs) {
+        for (auto &v : obs) {
+            std::sort(v.second.begin(), v.second.end());
+        }
+    };
+    sortMp(xObs);
+    sortMp(yObs);
+    auto getObV = [&]() -> const std::vector<int> & {
+        if (dir == 0 || dir == 1) {
+            return xObs[x];
+        }
+        return yObs[y];
+    };
+    auto getNewXOrY = [&](const int i, const int len) -> int {
+        if (len == 0)
+            return i;
+        const auto ov = getObV();
+        int l = 0, r = ov.size();
+        while (l < r) {
+            const int mid = l + (r - l) / 2;
+            if (ov[mid] <= i) {
+                l = mid + 1;
+            } else {
+                r = mid;
+            }
+        }
+        const int newI = i + len;
+        if (len > 0) {
+            if (newI >= ov[l]) {
+                return ov[l] - 1;
+            } else {
+                return newI;
+            }
+        } else {
+            if (l == 0)
+                return newI;
+            if (newI <= ov[l - 1])
+                return ov[l - 1] + 1;
+            return newI;
+        }
+    };
+    auto getNewCorordinate = [&](const int len) {
+        switch (dir) {
+        case 0: {
+            y = getNewXOrY(y, len);
+            break;
+        }
+        case 1: {
+            x = getNewXOrY(x, len);
+            break;
+        }
+        case 2: {
+            y = getNewXOrY(y, -len);
+            break;
+        }
+        case 3: {
+            x = getNewXOrY(x, -len);
+            break;
+        }
+        };
+    };
+    int ret = 0;
+    for (const auto cmd : commands) {
+        if (cmd == -1 || cmd == -2) {
+            setNewDir(cmd);
+            continue;
+        }
+        getNewCorordinate(cmd);
+        ret = std::max(ret, x * x + y * y);
+    }
+    return ret;
+}
+
+int getMaxLen(vector<int> &nums) {
+    int p = 0, n = 0;
+    int ret = 0;
+    for (const int i : nums) {
+        if (i == 0) {
+            p = 0;
+            n = 0;
+        } else if (i > 0) {
+            p++;
+            if (n > 0)
+                n++;
+        } else {
+            int n1 = p + 1;
+            if (n > 0) {
+                p = n + 1;
+            } else {
+                p = 0;
+            }
+            n = n1;
+        }
+        ret = std::max(ret, p);
+    }
+    return ret;
+}
+
+int numOfSubarrays(vector<int> &arr, int k, int threshold) {
+    int sm = 0;
+    for (int i = 0; i < k - 1; i++)
+        sm += arr[i];
+    int ret = 0;
+    for (int i = 0; i + k <= arr.size(); i++) {
+        sm += arr[i + k - 1];
+        if (sm / k >= threshold)
+            ret++;
+        sm -= arr[i];
+    }
+    return ret;
+}
+
+vector<int> addNegabinary(vector<int> &arr1, vector<int> &arr2) {
+    std::vector<int> ret;
+    int i = arr1.size() - 1, j = arr2.size() - 1;
+    int carry = 0;
+    while (i >= 0 || j >= 0 || carry != 0) {
+        const int iVal = i < 0 ? 0 : arr1[i--];
+        const int jVal = j < 0 ? 0 : arr2[j--];
+        const int sm = iVal + jVal + carry;
+        // i, j, sm, carry
+        fp("i: {}, j: {}, sm: {}, carry: {}\n", i, j, sm, carry);
+        if (sm == 1) {
+            ret.emplace_back(1);
+            carry = 0;
+        } else if (sm == 2) {
+            ret.emplace_back(0);
+            carry = -1;
+        } else if (sm == 3) {
+            ret.emplace_back(1);
+            carry = -1;
+        } else if (sm == -1) {
+            ret.emplace_back(1);
+            carry = 1;
+        } else {
+            ret.emplace_back(0);
+            carry = 0;
+        }
+    }
+    while (ret.size() > 1 && ret.back() == 0) {
+        ret.pop_back();
+    }
+    if (ret.empty()) {
+        ret.emplace_back(0);
+    }
+    std::reverse(ret.begin(), ret.end());
+    return ret;
+}
+
+vector<vector<string>> accountsMerge(vector<vector<string>> &accounts) {
+    class UF {
+        std::vector<int> p;
+
+      public:
+        UF(const int n) {
+            p.resize(n);
+            std::iota(p.begin(), p.end(), 0);
+        };
+        int findP(const int i) {
+            if (i == p[i])
+                return i;
+            return p[i] = findP(i);
+        }
+        void merge(const int a, const int b) {
+            const int pa = findP(a);
+            const int pb = findP(b);
+            if (pa != pb) {
+                p[pa] = pb;
+            }
+        }
+    };
+    const int n = accounts.size();
+    UF uf(n);
+    std::unordered_map<std::string, std::vector<int>> mainlIdx;
+    for (int i = 0; i < n; i++) {
+        for (int j = 1; j < accounts.size(); j++) {
+            mainlIdx[accounts[i][j]].emplace_back(i);
+        }
+    }
+    for (const auto &pr : mainlIdx) {
+        const auto &sd = pr.second;
+        for (const int i : sd) {
+            uf.merge(i, sd.front());
+        }
+    }
+    std::vector<std::unordered_set<std::string>> mailSet(n);
+    for (int i = 0; i < n; i++) {
+        const int pi = uf.findP(i);
+        for (int j = 1; j < accounts.size(); j++) {
+            mailSet[pi].emplace(accounts[i][j]);
+        }
+    }
+    std::vector<std::vector<std::string>> ret;
+    for (int i = 0; i < n; i++) {
+        if (mailSet[i].empty())
+            continue;
+        std::vector<std::string> tmp;
+        tmp.emplace_back(accounts[i][0]);
+        tmp.insert(tmp.end(), mailSet[i].begin(), mailSet[i].end());
+        ret.emplace_back(std::move(tmp));
+    }
+    return ret;
+}
+
+int countRangeSum(vector<int> &num, int lower, int upper) {
+    std::vector<int64_t> nums(num.size() + 1);
+    nums[1] = num.front();
+    for (int i = 1; i < num.size(); i++) {
+        nums[i + 1] = nums[i] + num[i];
+    }
+
+    int ret = 0;
+
+    auto calcCntBeteenLAndU = [&](const int left, const int mid, const int right) -> void {
+        int i = left;
+        int l = mid, r = mid;
+        while (i < mid) {
+            while (l < right && nums[l] - nums[i] < lower)
+                l++;
+            while (r < right && nums[r] - nums[i] <= upper)
+                r++;
+            ret += r - l;
+            i++;
+        }
+    };
+
+    auto merge = [&](const int left, const int mid, const int right) {
+        calcCntBeteenLAndU(left, mid, right);
+        int tmp[right - left];
+        int p = -1;
+        int i = left, j = mid;
+        while (i < mid && j < right) {
+            if (nums[i] < nums[j]) {
+                tmp[++p] = nums[i++];
+            } else {
+                tmp[++p] = nums[j++];
+            }
+        }
+        if (i < mid) {
+            std::memcpy(tmp + p + 1, nums.data() + i, 4 * (mid - i));
+        } else {
+            std::memcpy(tmp + p + 1, nums.data() + j, 4 * (right - j));
+        }
+        std::memcpy(nums.data() + left, tmp, sizeof(tmp));
+    };
+    std::function<void(const int, const int)> mergeSort = [&](const int left, const int right) {
+        if (left + 1 >= right)
+            return;
+        const int mid = left + (right - left) / 2;
+        mergeSort(left, mid);
+        mergeSort(mid + 1, right);
+        merge(left, mid, right);
+    };
+    mergeSort(0, nums.size());
+    return ret;
+}
+
+int smallestDistancePair(vector<int> &nums, int k) {
+    std::sort(nums.begin(), nums.end());
+    const int n = nums.size();
+    auto calcLEPr = [&](const int k) -> int {
+        int i = n - 1, j = n - 1;
+        int ret = 0;
+        while (i >= 0) {
+            while (j > i && nums[j] - nums[i] > k) j--;
+            ret += j - i;
+            i--;
+        }
+        // fp("k: {}, ret: {}\n", k, ret);
+        return ret;
+    };
+    int l = 0, r = nums.back() - nums.front();
+    while (l < r) {
+        const int mid = l + (r - l) / 2;
+        if (calcLEPr(mid) < k) {
+            l = mid + 1;
+        } else {
+            r = mid;
+        }
+    }
+    return l;
+}
+
+} // namespace E
 int main() {
-    vector<int> heights {3,19,3};
-    const auto ret = D::furthestBuilding(heights, 17, 0);
+    std::vector<int> nums{4, 62, 100};
+    const auto ret = E::smallestDistancePair(nums, 2);
     fp("ret: {}\n", ret);
     return 0;
 }
