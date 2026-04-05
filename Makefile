@@ -32,12 +32,7 @@ CXXFLAGS ?= $(CXXSTD) -Og -g $(CXXWARN)
 ASAN_CXXFLAGS := -fsanitize=address -fno-omit-frame-pointer
 ASAN_LDFLAGS := -fsanitize=address
 
-FMT_CFLAGS := $(shell pkg-config --cflags fmt 2>/dev/null)
-FMT_LIBS := $(shell pkg-config --libs fmt 2>/dev/null)
-
-CPPFLAGS += $(FMT_CFLAGS)
 CPPFLAGS += -MMD -MP
-LDLIBS += $(if $(strip $(FMT_LIBS)),$(FMT_LIBS),-lfmt)
 
 .PHONY: all asan run run-asan gdb clean test
 .PHONY: format

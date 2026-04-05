@@ -8,7 +8,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <deque>
-#include <fmt/core.h>
 #include <functional>
 #include <list>
 #include <memory>

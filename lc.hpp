@@ -1,10 +1,9 @@
 #pragma once
 
-#include <utility>
+#include <iostream>
+#include <string>
 
-#include <fmt/core.h>
-#include <fmt/ranges.h>
-
-template <typename... Args> inline void fp(fmt::format_string<Args...> format, Args &&...args) {
-    fmt::print(format, std::forward<Args>(args)...);
+template <typename... Args> inline void fp(const std::string &format, Args &&...args) {
+    (void)sizeof...(args);
+    std::cout << format;
 }
