@@ -8693,6 +8693,5 @@ int smallestDistancePair(vector<int> &nums, int k) {
 int main() {
     std::vector<int> nums{4, 62, 100};
     const auto ret = E::smallestDistancePair(nums, 2);
-    fp("ret: {}\n", ret);
     return 0;
 }
